@@ -2,6 +2,9 @@ import tkinter as tk
 import RPi.GPIO as GPIO
 from time import sleep
 
+# clean everything up
+GPIO.cleanup()
+
 # Direction pin from controller
 DIR = 10
 
@@ -43,6 +46,3 @@ button_ccw = tk.Button(root, text="Counter-Clockwise", command=move_ccw)
 button_ccw.pack()
 
 root.mainloop()
-
-# Once finished clean everything up
-GPIO.cleanup()
