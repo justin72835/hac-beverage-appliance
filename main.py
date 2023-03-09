@@ -2,49 +2,85 @@ import tkinter as tk
 import time
 import random
 
-def button_clicked():
-    print(button_on_off.cget('image'))
-    if button_on_off.cget('image') is button_on_image:
-        button_on_off.config(image=button_off_image)
-        print("chNGE")
+###################
+### GLOBAL VARS ### 
+###################  
+
+power_global = True
+heat_cool_global = True
+start_global = True
+clean_global = True
+
+###################
+#### FUNCTIONS #### 
+###################
+
+# power button pressed
+def power_pressed():
+    global power_global
+    if power_global:
+        power_button.config(image=power_off_image)
+        power_global = False
     else:
-        button_on_off.config(image=button_off_image)
-        print("ELSE")
+        power_button.config(image=power_on_image)
+        power_global = True
 
+# heat/cool button pressed
+def heat_cool_pressed():
+    global heat_cool_global
+    if heat_cool_global:
+        heat_cool_button.config(image=cool_image)
+        heat_cool_global = False
+    else:
+        heat_cool_button.config(image=heat_image)
+        heat_cool_global = True
 
+# inlet up button pressed and released
+def inlet_up_pressed(event):
+    inlet_up_button.config(image=inlet_up_shade_image)
+    print("hihi")
+def inlet_up_released(event):
+    inlet_up_button.config(image=inlet_up_image)
 
-def start():
-    print(entry_desired_temp.get())
+# inlet down button pressed and released
+def inlet_down_pressed(event):
+    inlet_down_button.config(image=inlet_down_shade_image)
+def inlet_down_released(event):
+    inlet_down_button.config(image=inlet_down_image)
 
-# Create the root window
-root = tk.Tk()
+# outlet up button pressed and released
+def outlet_up_pressed(event):
+    outlet_up_button.config(image=outlet_up_shade_image)
+def outlet_up_released(event):
+    outlet_up_button.config(image=outlet_up_image)
 
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-root.geometry(f"{screen_width}x{screen_height}")
+# outlet down button pressed and released
+def outlet_down_pressed(event):
+    outlet_down_button.config(image=outlet_down_shade_image)
+def outlet_down_released(event):
+    outlet_down_button.config(image=outlet_down_image)
 
-button_on_image = tk.PhotoImage(file="assets/on_button.png")
-button_off_image = tk.PhotoImage(file="assets/off_button.png")
+# start button pressed
+def start_pressed():
+    global start_global
+    if start_global:
+        start_button.config(image=start_shade_image)
+        start_global = False
+    else:
+        start_button.config(image=start_image)
+        start_global = True
 
-# Create buttons
-button_on_off = tk.Button(root, image = button_on_image, command=button_clicked)
-button_heating_cooling = tk.Button(root, text="Heating/Cooling", command=button_clicked)
-# button_inlet_up = tk.Button(root, text="Inlet Up", command=button_clicked)
-# button_inlet_down = tk.Button(root, text="Inlet Down", command=button_clicked)
-# button_outlet_up = tk.Button(root, text="Outlet Up", command=button_clicked)
-# button_outlet_down = tk.Button(root, text="Outlet Down", command=button_clicked)
-button_start = tk.Button(root, text="Start", command=start)
-# button_clean = tk.Button(root, text="Clean", command=button_clicked)
+# clean button pressed
+def clean_pressed():
+    global clean_global
+    if clean_global:
+        clean_button.config(image=clean_shade_image)
+        clean_global = False
+    else:
+        clean_button.config(image=clean_image)
+        clean_global = True
 
-# Create entry
-entry_desired_temp = tk.Entry(root)
-
-
-
-# Create a live label with the current temperature
-current_temperature = tk.Label(root, text="Hello, World!")
-
-# Define a function to update the timer
+# displays current temperature reading
 def update_temperature():
     # Update the timer label
     current_temperature.config(text = random.randint(50, 100))
@@ -52,27 +88,99 @@ def update_temperature():
     # Call this function again after 1000 milliseconds (1 second)
     root.after(1000, update_temperature)
 
-# Call the update_timer() function to start the timer
+###################
+##### WINDOW ###### 
+###################
+
+# create the root window
+root = tk.Tk()
+
+# root window geometry
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+root.geometry(f"{screen_width}x{screen_height}")
+
+###################
+##### BUTTONS ##### 
+###################  
+
+# power button
+power_on_image = tk.PhotoImage(file="assets/power_on.png")
+power_off_image = tk.PhotoImage(file="assets/power_off.png")
+power_button = tk.Button(root, image = power_on_image, command=power_pressed)
+
+# heat/cool button
+heat_image = tk.PhotoImage(file="assets/heat.png")
+cool_image = tk.PhotoImage(file="assets/cool.png")
+heat_cool_button = tk.Button(root, image = heat_image, command=heat_cool_pressed)
+
+# up and down buttons
+inlet_up_image = tk.PhotoImage(file="assets/inlet_up.png")
+inlet_up_shade_image = tk.PhotoImage(file="assets/inlet_up_shade.png")
+inlet_up_button = tk.Button(root, image = inlet_up_image)
+inlet_up_button.bind("<ButtonPress>", inlet_up_pressed)
+inlet_up_button.bind("<ButtonPress>", inlet_up_released)
+
+inlet_down_image = tk.PhotoImage(file="assets/inlet_down.png")
+inlet_down_shade_image = tk.PhotoImage(file="assets/inlet_down_shade.png")
+inlet_down_button = tk.Button(root, image = inlet_down_image)
+inlet_down_button.bind("<ButtonPress>", inlet_down_pressed)
+inlet_down_button.bind("<ButtonPress>", inlet_down_released)
+
+outlet_up_image = tk.PhotoImage(file="assets/outlet_up.png")
+outlet_up_shade_image = tk.PhotoImage(file="assets/outlet_up_shade.png")
+outlet_up_button = tk.Button(root, image = outlet_up_image)
+outlet_up_button.bind("<ButtonPress>", outlet_up_pressed)
+outlet_up_button.bind("<ButtonPress>", outlet_up_released)
+
+outlet_down_image = tk.PhotoImage(file="assets/outlet_down.png")
+outlet_down_shade_image = tk.PhotoImage(file="assets/outlet_down_shade.png")
+outlet_down_button = tk.Button(root, image = outlet_down_image)
+outlet_down_button.bind("<ButtonPress>", outlet_down_pressed)
+outlet_down_button.bind("<ButtonPress>", outlet_down_released)
+
+# start button
+start_image = tk.PhotoImage(file="assets/start.png")
+start_shade_image = tk.PhotoImage(file="assets/start_shade.png")
+start_button = tk.Button(root, image = start_image, command=start_pressed)
+
+# clean button
+clean_image = tk.PhotoImage(file="assets/clean.png")
+clean_shade_image = tk.PhotoImage(file="assets/clean_shade.png")
+clean_button = tk.Button(root, image = clean_image, command=clean_pressed)
+
+###################
+##### ENTRIES ##### 
+###################  
+
+# desired temperature
+desired_temp_entry = tk.Entry(root)
+
+###################
+##### LABLES ###### 
+###################
+
+# current temperature
+current_temperature = tk.Label(root)
+
+###################
+# FUNCTION CALLS ##
+###################
+
+# displays current temperature reading
 update_temperature()
 
-
-
-# Pack the label and button widgets into the window
+# adding objects to window
+power_button.pack()
+heat_cool_button.pack()
+inlet_up_button.pack()
+inlet_down_button.pack()
+outlet_up_button.pack()
+outlet_down_button.pack()
+start_button.pack()
+clean_button.pack()
+desired_temp_entry.pack()
 current_temperature.pack()
 
-button_on_off.pack()
-button_heating_cooling.pack()
-
-button_start.pack()
-
-entry_desired_temp.pack()
-
-
-
-
-
-
-
-
-# Start the tkinter event loop
+# start the tkinter event loop
 root.mainloop()
