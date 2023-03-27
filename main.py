@@ -1,6 +1,57 @@
 import tkinter as tk
-import time
+import RPi.GPIO as GPIO
+from time import sleep
 import random
+
+######################################
+## HARDWARE ## HARDWARE ## HARDWARE ##
+###################################### 
+
+###################
+###### PINS ####### 
+################### 
+
+DIR_inlet = 10
+DIR_outlet = 10
+
+STEP_inlet = 8
+STEP_outlet = 8
+
+###################
+##### SETUP ####### 
+###################
+
+GPIO.cleanup()
+
+GPIO.setmode(GPIO.BOARD)
+
+GPIO.setup(DIR_inlet, GPIO.OUT)
+GPIO.setup(DIR_outlet, GPIO.OUT)
+
+GPIO.setup(STEP_inlet, GPIO.OUT)
+GPIO.setup(STEP_outlet, GPIO.OUT)
+
+###################
+#### FUNCTIONS #### 
+###################
+
+def move_cw(DIR, STEP):
+    GPIO.output(DIR, 1)
+    GPIO.output(STEP, GPIO.HIGH)
+    sleep(.005)
+    GPIO.output(STEP, GPIO.LOW)
+    sleep(.005)
+
+def move_ccw(DIR, STEP):
+    GPIO.output(DIR, 0)
+    GPIO.output(STEP, GPIO.HIGH)
+    sleep(.005)
+    GPIO.output(STEP, GPIO.LOW)
+    sleep(.005)
+
+######################################
+## SOFTWARE ## SOFTWARE ## SOFTWARE ##
+######################################
 
 ###################
 ### GLOBAL VARS ### 
@@ -38,25 +89,28 @@ def heat_cool_pressed():
 # inlet up button pressed and released
 def inlet_up_pressed(event):
     inlet_up_button.config(image=inlet_up_shade_image)
-    print("hihi")
+    move_ccw(DIR_inlet, STEP_inlet)
 def inlet_up_released(event):
     inlet_up_button.config(image=inlet_up_image)
 
 # inlet down button pressed and released
 def inlet_down_pressed(event):
     inlet_down_button.config(image=inlet_down_shade_image)
+    move_cw(DIR_inlet, STEP_inlet)
 def inlet_down_released(event):
     inlet_down_button.config(image=inlet_down_image)
 
 # outlet up button pressed and released
 def outlet_up_pressed(event):
     outlet_up_button.config(image=outlet_up_shade_image)
+    move_ccw(DIR_outlet, STEP_outlet)
 def outlet_up_released(event):
     outlet_up_button.config(image=outlet_up_image)
 
 # outlet down button pressed and released
 def outlet_down_pressed(event):
     outlet_down_button.config(image=outlet_down_shade_image)
+    move_cw(DIR_outlet, STEP_outlet)
 def outlet_down_released(event):
     outlet_down_button.config(image=outlet_down_image)
 
@@ -118,26 +172,26 @@ heat_cool_button = tk.Button(root, image = heat_image, command=heat_cool_pressed
 inlet_up_image = tk.PhotoImage(file="assets/inlet_up.png")
 inlet_up_shade_image = tk.PhotoImage(file="assets/inlet_up_shade.png")
 inlet_up_button = tk.Button(root, image = inlet_up_image)
-inlet_up_button.bind("<ButtonPress>", inlet_up_pressed)
-inlet_up_button.bind("<ButtonPress>", inlet_up_released)
+inlet_up_button.bind("<ButtonPress-1>", inlet_up_pressed)
+inlet_up_button.bind("<ButtonRelease-1>", inlet_up_released)
 
 inlet_down_image = tk.PhotoImage(file="assets/inlet_down.png")
 inlet_down_shade_image = tk.PhotoImage(file="assets/inlet_down_shade.png")
 inlet_down_button = tk.Button(root, image = inlet_down_image)
-inlet_down_button.bind("<ButtonPress>", inlet_down_pressed)
-inlet_down_button.bind("<ButtonPress>", inlet_down_released)
+inlet_down_button.bind("<ButtonPress-1>", inlet_down_pressed)
+inlet_down_button.bind("<ButtonRelease-1>", inlet_down_released)
 
 outlet_up_image = tk.PhotoImage(file="assets/outlet_up.png")
 outlet_up_shade_image = tk.PhotoImage(file="assets/outlet_up_shade.png")
 outlet_up_button = tk.Button(root, image = outlet_up_image)
-outlet_up_button.bind("<ButtonPress>", outlet_up_pressed)
-outlet_up_button.bind("<ButtonPress>", outlet_up_released)
+outlet_up_button.bind("<ButtonPress-1>", outlet_up_pressed)
+outlet_up_button.bind("<ButtonRelease-1>", outlet_up_released)
 
 outlet_down_image = tk.PhotoImage(file="assets/outlet_down.png")
 outlet_down_shade_image = tk.PhotoImage(file="assets/outlet_down_shade.png")
 outlet_down_button = tk.Button(root, image = outlet_down_image)
-outlet_down_button.bind("<ButtonPress>", outlet_down_pressed)
-outlet_down_button.bind("<ButtonPress>", outlet_down_released)
+outlet_down_button.bind("<ButtonPress-1>", outlet_down_pressed)
+outlet_down_button.bind("<ButtonRelease-1>", outlet_down_released)
 
 # start button
 start_image = tk.PhotoImage(file="assets/start.png")
