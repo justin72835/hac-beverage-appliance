@@ -13,10 +13,10 @@ import tkinter as tk
 ################### 
 
 DIR_inlet = 10
-DIR_outlet = 10
+DIR_outlet = 16
 
 STEP_inlet = 8
-STEP_outlet = 8
+STEP_outlet = 18
 
 ###################
 ##### SETUP ####### 
