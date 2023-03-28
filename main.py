@@ -18,6 +18,8 @@ DIR_outlet = 16
 STEP_inlet = 8
 STEP_outlet = 18
 
+MOTOR = 0
+
 ###################
 ##### SETUP ####### 
 ###################
@@ -32,12 +34,14 @@ GPIO.setup(DIR_outlet, GPIO.OUT)
 GPIO.setup(STEP_inlet, GPIO.OUT)
 GPIO.setup(STEP_outlet, GPIO.OUT)
 
+GPIO.setup(MOTOR, GPIO.OUT)
+
 ###################
 #### FUNCTIONS #### 
 ###################
 
 # upward
-def move_ccw(DIR, STEP):
+def move_up(DIR, STEP):
     GPIO.output(DIR, 0)
     GPIO.output(STEP, GPIO.HIGH)
     sleep(.0004)
@@ -45,12 +49,20 @@ def move_ccw(DIR, STEP):
     sleep(.0004)
 
 # downward
-def move_cw(DIR, STEP):
+def move_down(DIR, STEP):
     GPIO.output(DIR, 1)
     GPIO.output(STEP, GPIO.HIGH)
     sleep(.0004)
     GPIO.output(STEP, GPIO.LOW)
     sleep(.0004)
+
+# run cycle
+def start_cycle(desired_temperature):
+    GPIO.output(MOTOR, GPIO.HIGH)
+
+    sleep(1)
+    
+    GPIO.output(MOTOR, GPIO.LOW)
 
 ######################################
 ## SOFTWARE ## SOFTWARE ## SOFTWARE ##
@@ -87,19 +99,19 @@ root.geometry(f"{screen_width}x{screen_height}")
 # threads and functions for tube actuation
 def inlet_up_check():
     while inlet_up_global:
-        move_ccw(DIR_inlet, STEP_inlet)
+        move_up(DIR_inlet, STEP_inlet)
 
 def inlet_down_check():
     while inlet_down_global:
-        move_cw(DIR_inlet, STEP_inlet)
+        move_down(DIR_inlet, STEP_inlet)
 
 def outlet_up_check():
     while outlet_up_global:
-        move_ccw(DIR_outlet, STEP_outlet)
+        move_up(DIR_outlet, STEP_outlet)
 
 def outlet_down_check():
     while outlet_down_global:
-        move_cw(DIR_outlet, STEP_outlet)
+        move_down(DIR_outlet, STEP_outlet)
 
 ###################
 #### FUNCTIONS #### 
@@ -179,6 +191,7 @@ def start_pressed():
     if start_global:
         start_button.config(image=start_shade_image)
         start_global = False
+        start_cycle(desired_temperature_entry.get())
     else:
         start_button.config(image=start_image)
         start_global = True
@@ -196,7 +209,7 @@ def clean_pressed():
 # displays current temperature reading
 def update_temperature():
     # Update the timer label
-    current_temperature.config(text = random.randint(50, 100))
+    current_temperature_label.config(text = random.randint(50, 100))
 
     # Call this function again after 1000 milliseconds (1 second)
     root.after(1000, update_temperature)
@@ -255,14 +268,14 @@ clean_button = tk.Button(root, image = clean_image, command=clean_pressed)
 ###################  
 
 # desired temperature
-desired_temp_entry = tk.Entry(root)
+desired_temperature_entry = tk.Entry(root)
 
 ###################
 ##### LABLES ###### 
 ###################
 
 # current temperature
-current_temperature = tk.Label(root)
+current_temperature_label = tk.Label(root)
 
 ###################
 # FUNCTION CALLS ##
@@ -280,8 +293,8 @@ outlet_up_button.pack()
 outlet_down_button.pack()
 start_button.pack()
 clean_button.pack()
-desired_temp_entry.pack()
-current_temperature.pack()
+desired_temperature_entry.pack()
+current_temperature_label.pack()
 
 # start the tkinter event loop
 root.mainloop()
