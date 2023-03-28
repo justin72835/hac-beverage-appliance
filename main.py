@@ -56,11 +56,19 @@ def move_down(DIR, STEP):
     GPIO.output(STEP, GPIO.LOW)
     sleep(.0004)
 
-# run cycle
+# run normal cycle
 def start_cycle(desired_temperature):
     GPIO.output(MOTOR, GPIO.HIGH)
 
-    sleep(1)
+    sleep(3) # should replace with a while loop comparing current and desired temperature
+    
+    GPIO.output(MOTOR, GPIO.LOW)
+
+# run cleaning cycle
+def clean_cycle(desired_temperature):
+    GPIO.output(MOTOR, GPIO.HIGH)
+
+    sleep(3)
     
     GPIO.output(MOTOR, GPIO.LOW)
 
@@ -79,10 +87,6 @@ inlet_up_global = False
 inlet_down_global = False
 outlet_up_global = False
 outlet_down_global = False
-
-start_global = True
-clean_global = True
-
 
 ###################
 ##### SETUP ####### 
@@ -187,24 +191,15 @@ def outlet_down_released(event):
 
 # start button pressed
 def start_pressed():
-    global start_global
-    if start_global:
-        start_button.config(image=start_shade_image)
-        start_global = False
-        start_cycle(desired_temperature_entry.get())
-    else:
-        start_button.config(image=start_image)
-        start_global = True
+    start_button.config(image=start_shade_image)
+    start_cycle(desired_temperature_entry.get())
+    start_button.config(image=start_image)
 
 # clean button pressed
 def clean_pressed():
-    global clean_global
-    if clean_global:
-        clean_button.config(image=clean_shade_image)
-        clean_global = False
-    else:
-        clean_button.config(image=clean_image)
-        clean_global = True
+    clean_button.config(image=clean_shade_image)
+    clean_cycle()
+    clean_button.config(image=clean_image)
 
 # displays current temperature reading
 def update_temperature():
