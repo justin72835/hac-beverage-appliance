@@ -40,17 +40,17 @@ GPIO.setup(STEP_outlet, GPIO.OUT)
 def move_ccw(DIR, STEP):
     GPIO.output(DIR, 0)
     GPIO.output(STEP, GPIO.HIGH)
-    sleep(.005)
+    sleep(.0004)
     GPIO.output(STEP, GPIO.LOW)
-    sleep(.005)
+    sleep(.0004)
 
 # downward
 def move_cw(DIR, STEP):
     GPIO.output(DIR, 1)
     GPIO.output(STEP, GPIO.HIGH)
-    sleep(.005)
+    sleep(.0004)
     GPIO.output(STEP, GPIO.LOW)
-    sleep(.005)
+    sleep(.0004)
 
 ######################################
 ## SOFTWARE ## SOFTWARE ## SOFTWARE ##
