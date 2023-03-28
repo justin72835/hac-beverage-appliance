@@ -1,7 +1,8 @@
-import tkinter as tk
-import RPi.GPIO as GPIO
+from threading import Thread
 from time import sleep
 import random
+import RPi.GPIO as GPIO
+import tkinter as tk
 
 ######################################
 ## HARDWARE ## HARDWARE ## HARDWARE ##
@@ -35,15 +36,17 @@ GPIO.setup(STEP_outlet, GPIO.OUT)
 #### FUNCTIONS #### 
 ###################
 
-def move_cw(DIR, STEP):
-    GPIO.output(DIR, 1)
+# upward
+def move_ccw(DIR, STEP):
+    GPIO.output(DIR, 0)
     GPIO.output(STEP, GPIO.HIGH)
     sleep(.005)
     GPIO.output(STEP, GPIO.LOW)
     sleep(.005)
 
-def move_ccw(DIR, STEP):
-    GPIO.output(DIR, 0)
+# downward
+def move_cw(DIR, STEP):
+    GPIO.output(DIR, 1)
     GPIO.output(STEP, GPIO.HIGH)
     sleep(.005)
     GPIO.output(STEP, GPIO.LOW)
@@ -59,8 +62,49 @@ def move_ccw(DIR, STEP):
 
 power_global = True
 heat_cool_global = True
+
+inlet_up_global = False
+inlet_down_global = False
+outlet_up_global = False
+outlet_down_global = False
+
 start_global = True
 clean_global = True
+
+
+###################
+##### SETUP ####### 
+###################
+
+# create the root window
+root = tk.Tk()
+
+# root window geometry
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+root.geometry(f"{screen_width}x{screen_height}")
+
+# threads and functions for tube actuation
+def inlet_up_check():
+    while inlet_up_global:
+        move_ccw(DIR_inlet, STEP_inlet)
+
+def inlet_down_check():
+    while inlet_down_global:
+        move_ccw(DIR_inlet, STEP_inlet)
+
+def outlet_up_check():
+    while outlet_up_global:
+        move_ccw(DIR_outlet, STEP_outlet)
+
+def outlet_down_check():
+    while outlet_down_global:
+        move_ccw(DIR_outlet, STEP_outlet)
+
+inlet_up_thread = Thread(target = inlet_up_check, args = ())
+inlet_down_thread = Thread(target = inlet_down_check, args = ())
+outlet_up_thread = Thread(target = outlet_up_check, args = ())
+outlet_down_thread = Thread(target = outlet_down_check, args = ())
 
 ###################
 #### FUNCTIONS #### 
@@ -88,31 +132,47 @@ def heat_cool_pressed():
 
 # inlet up button pressed and released
 def inlet_up_pressed(event):
+    global inlet_up_global
     inlet_up_button.config(image=inlet_up_shade_image)
-    move_ccw(DIR_inlet, STEP_inlet)
+    inlet_up_global = True
+    inlet_up_thread.start()
 def inlet_up_released(event):
+    global inlet_up_global
     inlet_up_button.config(image=inlet_up_image)
+    inlet_up_global = False
 
 # inlet down button pressed and released
 def inlet_down_pressed(event):
+    global inlet_down_global
     inlet_down_button.config(image=inlet_down_shade_image)
-    move_cw(DIR_inlet, STEP_inlet)
+    inlet_down_global = True
+    inlet_down_thread.start()
 def inlet_down_released(event):
+    global inlet_down_global
     inlet_down_button.config(image=inlet_down_image)
+    inlet_down_global = False
 
 # outlet up button pressed and released
 def outlet_up_pressed(event):
+    global outlet_up_global
     outlet_up_button.config(image=outlet_up_shade_image)
-    move_ccw(DIR_outlet, STEP_outlet)
+    outlet_up_global = True
+    outlet_up_thread.start()
 def outlet_up_released(event):
+    global outlet_up_global
     outlet_up_button.config(image=outlet_up_image)
+    outlet_up_global = False
 
 # outlet down button pressed and released
 def outlet_down_pressed(event):
+    global outlet_down_global
     outlet_down_button.config(image=outlet_down_shade_image)
-    move_cw(DIR_outlet, STEP_outlet)
+    outlet_down_global = True
+    outlet_down_thread.start()
 def outlet_down_released(event):
+    global outlet_down_global
     outlet_down_button.config(image=outlet_down_image)
+    outlet_down_global = False
 
 # start button pressed
 def start_pressed():
@@ -141,18 +201,6 @@ def update_temperature():
 
     # Call this function again after 1000 milliseconds (1 second)
     root.after(1000, update_temperature)
-
-###################
-##### WINDOW ###### 
-###################
-
-# create the root window
-root = tk.Tk()
-
-# root window geometry
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-root.geometry(f"{screen_width}x{screen_height}")
 
 ###################
 ##### BUTTONS ##### 
