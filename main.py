@@ -18,7 +18,7 @@ DIR_outlet = 16
 STEP_inlet = 8
 STEP_outlet = 18
 
-MOTOR = 0
+MOTOR = 22
 
 ###################
 ##### SETUP ####### 
