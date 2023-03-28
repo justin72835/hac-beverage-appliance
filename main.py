@@ -91,7 +91,7 @@ def inlet_up_check():
 
 def inlet_down_check():
     while inlet_down_global:
-        move_ccw(DIR_inlet, STEP_inlet)
+        move_cw(DIR_inlet, STEP_inlet)
 
 def outlet_up_check():
     while outlet_up_global:
@@ -99,12 +99,7 @@ def outlet_up_check():
 
 def outlet_down_check():
     while outlet_down_global:
-        move_ccw(DIR_outlet, STEP_outlet)
-
-inlet_up_thread = Thread(target = inlet_up_check, args = ())
-inlet_down_thread = Thread(target = inlet_down_check, args = ())
-outlet_up_thread = Thread(target = outlet_up_check, args = ())
-outlet_down_thread = Thread(target = outlet_down_check, args = ())
+        move_cw(DIR_outlet, STEP_outlet)
 
 ###################
 #### FUNCTIONS #### 
@@ -133,6 +128,7 @@ def heat_cool_pressed():
 # inlet up button pressed and released
 def inlet_up_pressed(event):
     global inlet_up_global
+    inlet_up_thread = Thread(target = inlet_up_check, args = ())
     inlet_up_button.config(image=inlet_up_shade_image)
     inlet_up_global = True
     inlet_up_thread.start()
@@ -144,6 +140,7 @@ def inlet_up_released(event):
 # inlet down button pressed and released
 def inlet_down_pressed(event):
     global inlet_down_global
+    inlet_down_thread = Thread(target = inlet_down_check, args = ())
     inlet_down_button.config(image=inlet_down_shade_image)
     inlet_down_global = True
     inlet_down_thread.start()
@@ -155,6 +152,7 @@ def inlet_down_released(event):
 # outlet up button pressed and released
 def outlet_up_pressed(event):
     global outlet_up_global
+    outlet_up_thread = Thread(target = outlet_up_check, args = ())
     outlet_up_button.config(image=outlet_up_shade_image)
     outlet_up_global = True
     outlet_up_thread.start()
@@ -166,6 +164,7 @@ def outlet_up_released(event):
 # outlet down button pressed and released
 def outlet_down_pressed(event):
     global outlet_down_global
+    outlet_down_thread = Thread(target = outlet_down_check, args = ())
     outlet_down_button.config(image=outlet_down_shade_image)
     outlet_down_global = True
     outlet_down_thread.start()
