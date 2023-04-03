@@ -42,6 +42,7 @@ GPIO.setup(STEP_outlet, GPIO.OUT)
 
 # setting up pump motor
 GPIO.setup(MOTOR, GPIO.OUT)
+GPIO.output(MOTOR, GPIO.LOW)
 
 # setting up MAX6675
 GPIO.setup(CS, GPIO.OUT, initial = GPIO.HIGH)
