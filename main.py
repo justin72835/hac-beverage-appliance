@@ -326,6 +326,8 @@ current_temperature_label = tk.Label(root)
 
 # adding objects to window
 current_temperature_label.pack()
+
+desired_temperature_entry.pack()
 power_button.pack()
 heat_cool_button.pack()
 inlet_up_button.pack()
@@ -334,7 +336,6 @@ outlet_up_button.pack()
 outlet_down_button.pack()
 start_button.pack()
 clean_button.pack()
-desired_temperature_entry.pack()
 
 # update temperature thread
 update_temperature_thread = Thread(target = update_temperature, args = ())
