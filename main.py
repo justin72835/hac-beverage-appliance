@@ -245,7 +245,7 @@ def outlet_down_released(event):
 # start button pressed
 def start_pressed():
     start_button.config(image=start_shade_image)
-    start_cycle(desired_temperature_entry.get())
+    start_cycle(float(desired_temperature_entry.get()))
     start_button.config(image=start_image)
 
 # clean button pressed
