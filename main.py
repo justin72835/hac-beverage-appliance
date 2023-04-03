@@ -72,7 +72,7 @@ def move_down(DIR, STEP):
 def start_cycle(desired_temperature):
     global heat_cool_global
     GPIO.output(MOTOR, GPIO.HIGH)
-    while current_temperature() < desired_temperature and heat_cool_global or current_temperature() < desired_temperature and not heat_cool_global:
+    while current_temperature() < desired_temperature and heat_cool_global or current_temperature() > desired_temperature and not heat_cool_global:
         pass
     GPIO.output(MOTOR, GPIO.LOW)
 
@@ -251,11 +251,10 @@ def clean_pressed():
     clean_cycle()
     clean_button.config(image=clean_image)
 
-# displays current temperature reading
+# updates temperature reading every second
 def update_temperature():
     while True:
         current_temperature_label.config(text = current_temperature())
-        sleep(1000)
 
 ###################
 ##### BUTTONS ##### 
@@ -326,6 +325,7 @@ current_temperature_label = tk.Label(root)
 ###################
 
 # adding objects to window
+current_temperature_label.pack()
 power_button.pack()
 heat_cool_button.pack()
 inlet_up_button.pack()
@@ -335,7 +335,6 @@ outlet_down_button.pack()
 start_button.pack()
 clean_button.pack()
 desired_temperature_entry.pack()
-current_temperature_label.pack()
 
 # update temperature thread
 update_temperature_thread = Thread(target = update_temperature, args = ())
