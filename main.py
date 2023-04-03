@@ -72,7 +72,9 @@ def move_down(DIR, STEP):
 def start_cycle(desired_temperature):
     global heat_cool_global
     GPIO.output(MOTOR, GPIO.HIGH)
-    while current_temperature() < desired_temperature and heat_cool_global or current_temperature() > desired_temperature and not heat_cool_global:
+    current_temperature = get_current_temperature()
+    while current_temperature < desired_temperature and heat_cool_global or current_temperature > desired_temperature and not heat_cool_global:
+        print(current_temperature, heat_cool_global)
         pass
     GPIO.output(MOTOR, GPIO.LOW)
 
@@ -83,7 +85,7 @@ def clean_cycle(desired_temperature):
     GPIO.output(MOTOR, GPIO.LOW)
 
 # get current temperature over the course of a second
-def current_temperature():
+def get_current_temperature():
     temperatures = []
 
     for n in range(5):
@@ -254,7 +256,7 @@ def clean_pressed():
 # updates temperature reading every second
 def update_temperature():
     while True:
-        current_temperature_label.config(text = current_temperature())
+        current_temperature_label.config(text = get_current_temperature())
 
 ###################
 ##### BUTTONS ##### 
