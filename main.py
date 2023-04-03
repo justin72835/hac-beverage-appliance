@@ -265,7 +265,7 @@ def update_temperature():
         global current_temperature_global
         with current_temperature_lock:
             current_temperature_global = get_current_temperature()
-        current_temperature_label.config(text = current_temperature_global)
+            current_temperature_label.config(text = current_temperature_global)
 
 ###################
 ##### BUTTONS ##### 
