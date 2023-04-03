@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Lock
 from time import sleep
 import random
 import RPi.GPIO as GPIO
@@ -74,9 +74,12 @@ def start_cycle(desired_temperature):
     global heat_cool_global
     global current_temperature_global
     GPIO.output(MOTOR, GPIO.HIGH)
-    while current_temperature_global < desired_temperature and heat_cool_global or current_temperature_global > desired_temperature and not heat_cool_global:
-        print(current_temperature_global, heat_cool_global)
-        pass
+    while True:
+        with current_temperature_lock:
+            if current_temperature_global < desired_temperature and heat_cool_global or current_temperature_global > desired_temperature and not heat_cool_global:
+                print(current_temperature_global, heat_cool_global)
+            else:
+                break
     GPIO.output(MOTOR, GPIO.LOW)
 
 # run cleaning cycle
@@ -260,7 +263,8 @@ def clean_pressed():
 def update_temperature():
     while True:
         global current_temperature_global
-        current_temperature_global = get_current_temperature()
+        with current_temperature_lock:
+            current_temperature_global = get_current_temperature()
         current_temperature_label.config(text = current_temperature_global)
 
 ###################
@@ -345,6 +349,7 @@ start_button.pack()
 clean_button.pack()
 
 # update temperature thread
+current_temperature_lock = Lock()
 update_temperature_thread = Thread(target = update_temperature, args = ())
 update_temperature_thread.start()
 
