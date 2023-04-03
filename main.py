@@ -12,13 +12,19 @@ import tkinter as tk
 ###### PINS ####### 
 ################### 
 
+# communicating with stepper motors
 DIR_inlet = 10
 DIR_outlet = 16
-
 STEP_inlet = 8
 STEP_outlet = 18
 
+# communicating with pump motor
 MOTOR = 22
+
+# communicating with MAX6675
+CS = 36
+SCK = 40
+SO = 35
 
 ###################
 ##### SETUP ####### 
@@ -28,13 +34,19 @@ GPIO.cleanup()
 
 GPIO.setmode(GPIO.BOARD)
 
+# setting up stepper motors
 GPIO.setup(DIR_inlet, GPIO.OUT)
 GPIO.setup(DIR_outlet, GPIO.OUT)
-
 GPIO.setup(STEP_inlet, GPIO.OUT)
 GPIO.setup(STEP_outlet, GPIO.OUT)
 
+# setting up pump motor
 GPIO.setup(MOTOR, GPIO.OUT)
+
+# setting up MAX6675
+GPIO.setup(CS, GPIO.OUT, initial = GPIO.HIGH)
+GPIO.setup(SCK, GPIO.OUT, initial = GPIO.LOW)
+GPIO.setup(SO, GPIO.IN)
 
 ###################
 #### FUNCTIONS #### 
@@ -58,19 +70,57 @@ def move_down(DIR, STEP):
 
 # run normal cycle
 def start_cycle(desired_temperature):
+    global heat_cool_global
     GPIO.output(MOTOR, GPIO.HIGH)
-
-    sleep(3) # should replace with a while loop comparing current and desired temperature
-    
+    while current_temperature() < desired_temperature and heat_cool_global or current_temperature() < desired_temperature and not heat_cool_global:
+        pass
     GPIO.output(MOTOR, GPIO.LOW)
 
 # run cleaning cycle
 def clean_cycle(desired_temperature):
     GPIO.output(MOTOR, GPIO.HIGH)
-
-    sleep(3)
-    
+    sleep(10)
     GPIO.output(MOTOR, GPIO.LOW)
+
+# get current temperature over the course of a second
+def current_temperature():
+    temperatures = []
+
+    for n in range(5):
+        GPIO.output(CS, GPIO.LOW)
+        sleep(0.002)
+        GPIO.output(CS, GPIO.HIGH)
+        sleep(0.22)
+
+        GPIO.output(CS, GPIO.LOW)
+        GPIO.output(SCK, GPIO.HIGH)
+        sleep(0.001)
+        GPIO.output(SCK, GPIO.LOW)
+
+        value = 0
+        
+        for i in range(11, -1, -1):
+            GPIO.output(SCK, GPIO.HIGH)
+            value += (GPIO.input(SO) * (2 ** i))
+            GPIO.output(SCK, GPIO.LOW)
+
+        GPIO.output(SCK, GPIO.HIGH)
+        error_tc = GPIO.input(SO)
+        GPIO.output(SCK, GPIO.LOW)
+
+        for i in range(2):
+            GPIO.output(SCK, GPIO.HIGH)
+            sleep(0.001)
+            GPIO.output(SCK, GPIO.LOW)
+
+        GPIO.output(CS, GPIO.HIGH)
+
+        if error_tc != 0:
+            return -CS
+
+        temperatures.append(value * 0.23)
+
+    return sum(temperatures)/len(temperatures)
 
 ######################################
 ## SOFTWARE ## SOFTWARE ## SOFTWARE ##
@@ -203,11 +253,9 @@ def clean_pressed():
 
 # displays current temperature reading
 def update_temperature():
-    # Update the timer label
-    current_temperature_label.config(text = random.randint(50, 100))
-
-    # Call this function again after 1000 milliseconds (1 second)
-    root.after(1000, update_temperature)
+    while True:
+        current_temperature_label.config(text = current_temperature())
+        sleep(1000)
 
 ###################
 ##### BUTTONS ##### 
@@ -253,6 +301,7 @@ start_image = tk.PhotoImage(file="assets/start.png")
 start_shade_image = tk.PhotoImage(file="assets/start_shade.png")
 start_button = tk.Button(root, image = start_image, command=start_pressed)
 
+
 # clean button
 clean_image = tk.PhotoImage(file="assets/clean.png")
 clean_shade_image = tk.PhotoImage(file="assets/clean_shade.png")
@@ -276,9 +325,6 @@ current_temperature_label = tk.Label(root)
 # FUNCTION CALLS ##
 ###################
 
-# displays current temperature reading
-update_temperature()
-
 # adding objects to window
 power_button.pack()
 heat_cool_button.pack()
@@ -290,6 +336,10 @@ start_button.pack()
 clean_button.pack()
 desired_temperature_entry.pack()
 current_temperature_label.pack()
+
+# update temperature thread
+update_temperature_thread = Thread(target = update_temperature, args = ())
+update_temperature_thread.start()
 
 # start the tkinter event loop
 root.mainloop()
