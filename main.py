@@ -75,9 +75,12 @@ def move_down(DIR, STEP):
 def start_cycle(desired_temperature):
     global heat_cool_global
     global current_temperature_global
+    print("<start_cycle function> Cycle has been started.")
     GPIO.output(MOTOR, GPIO.HIGH)
     while current_temperature_global < desired_temperature and heat_cool_global or current_temperature_global > desired_temperature and not heat_cool_global:
-        pass
+        print("<start_cycle function> Inside while loop. Temperature at", current_temperature_global, "C")
+        sleep(1)
+    print("<start_cycle function> Cycle has ended. Desired temperature has been reached.")
     GPIO.output(MOTOR, GPIO.LOW)
 
 # run cleaning cycle
@@ -247,6 +250,7 @@ def outlet_down_released(event):
 
 # start button pressed
 def start_pressed():
+    print("<start_pressed function> Start button has been pressed")
     start_button.config(image=start_shade_image)
     start_cycle_thread = Thread(target = start_cycle, args = [float(desired_temperature_entry.get())])
     start_cycle_thread.start()
@@ -262,6 +266,7 @@ def clean_pressed():
 def update_temperature():
     while True:
         global current_temperature_global
+        print("<update_temperature function> Current temperature has been updated via thermocouple.")
         current_temperature_global = get_current_temperature()
         current_temperature_label.config(text = current_temperature_global)
 
