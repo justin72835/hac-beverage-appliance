@@ -1,7 +1,6 @@
 from threading import Thread, Lock
 from time import sleep
 import random
-import RPi.GPIO as GPIO
 import tkinter as tk
 
 ######################################
@@ -27,104 +26,39 @@ SCK = 40
 SO = 35
 
 ###################
-##### SETUP ####### 
-###################
-
-GPIO.cleanup()
-
-GPIO.setmode(GPIO.BOARD)
-
-# setting up stepper motors
-GPIO.setup(DIR_inlet, GPIO.OUT)
-GPIO.setup(DIR_outlet, GPIO.OUT)
-GPIO.setup(STEP_inlet, GPIO.OUT)
-GPIO.setup(STEP_outlet, GPIO.OUT)
-
-# setting up pump motor
-GPIO.setup(MOTOR, GPIO.OUT)
-
-# purely here for debugging, makes motor turn off at runtime
-GPIO.output(MOTOR, GPIO.LOW)
-
-# setting up MAX6675
-GPIO.setup(CS, GPIO.OUT, initial = GPIO.HIGH)
-GPIO.setup(SCK, GPIO.OUT, initial = GPIO.LOW)
-GPIO.setup(SO, GPIO.IN)
-
-###################
 #### FUNCTIONS #### 
 ###################
 
 # upward
 def move_up(DIR, STEP):
-    GPIO.output(DIR, 0)
-    GPIO.output(STEP, GPIO.HIGH)
-    sleep(.0004)
-    GPIO.output(STEP, GPIO.LOW)
-    sleep(.0004)
+    print("up")
 
 # downward
 def move_down(DIR, STEP):
-    GPIO.output(DIR, 1)
-    GPIO.output(STEP, GPIO.HIGH)
-    sleep(.0004)
-    GPIO.output(STEP, GPIO.LOW)
-    sleep(.0004)
+    print("down")
 
 # run normal cycle
 def start_cycle(desired_temperature):
     global heat_cool_global
     global current_temperature_global
-    GPIO.output(MOTOR, GPIO.HIGH)
-    while current_temperature_global < desired_temperature and heat_cool_global or current_temperature_global > desired_temperature and not heat_cool_global:
-        pass
-    GPIO.output(MOTOR, GPIO.LOW)
+    
+    print("inside start")
+
+    while True:
+        if current_temperature_global < desired_temperature and heat_cool_global or current_temperature_global > desired_temperature and not heat_cool_global:
+            print(current_temperature_global, heat_cool_global)
+        else:
+            break
+
+    print("break")
 
 # run cleaning cycle
 def clean_cycle(desired_temperature):
-    GPIO.output(MOTOR, GPIO.HIGH)
-    sleep(10)
-    GPIO.output(MOTOR, GPIO.LOW)
+    pass
 
 # get current temperature over the course of a second
 def get_current_temperature():
-    temperatures = []
-
-    for n in range(5):
-        GPIO.output(CS, GPIO.LOW)
-        sleep(0.002)
-        GPIO.output(CS, GPIO.HIGH)
-        sleep(0.22)
-
-        GPIO.output(CS, GPIO.LOW)
-        GPIO.output(SCK, GPIO.HIGH)
-        sleep(0.001)
-        GPIO.output(SCK, GPIO.LOW)
-
-        value = 0
-        
-        for i in range(11, -1, -1):
-            GPIO.output(SCK, GPIO.HIGH)
-            value += (GPIO.input(SO) * (2 ** i))
-            GPIO.output(SCK, GPIO.LOW)
-
-        GPIO.output(SCK, GPIO.HIGH)
-        error_tc = GPIO.input(SO)
-        GPIO.output(SCK, GPIO.LOW)
-
-        for i in range(2):
-            GPIO.output(SCK, GPIO.HIGH)
-            sleep(0.001)
-            GPIO.output(SCK, GPIO.LOW)
-
-        GPIO.output(CS, GPIO.HIGH)
-
-        if error_tc != 0:
-            return -CS
-
-        temperatures.append(value * 0.23)
-
-    return sum(temperatures)/len(temperatures)
+    pass
 
 ######################################
 ## SOFTWARE ## SOFTWARE ## SOFTWARE ##
@@ -142,7 +76,7 @@ inlet_down_global = False
 outlet_up_global = False
 outlet_down_global = False
 
-current_temperature_global = float('inf')
+current_temperature_global = 0
 
 ###################
 ##### SETUP ####### 
@@ -247,6 +181,7 @@ def outlet_down_released(event):
 
 # start button pressed
 def start_pressed():
+    print('start')
     start_button.config(image=start_shade_image)
     start_cycle_thread = Thread(target = start_cycle, args = [float(desired_temperature_entry.get())])
     start_cycle_thread.start()
@@ -262,8 +197,10 @@ def clean_pressed():
 def update_temperature():
     while True:
         global current_temperature_global
-        current_temperature_global = get_current_temperature()
+        sleep(1)
+        current_temperature_global += 1
         current_temperature_label.config(text = current_temperature_global)
+
 
 ###################
 ##### BUTTONS ##### 
@@ -347,6 +284,7 @@ start_button.pack()
 clean_button.pack()
 
 # update temperature thread
+current_temperature_lock = Lock()
 update_temperature_thread = Thread(target = update_temperature, args = ())
 update_temperature_thread.start()
 
