@@ -177,9 +177,36 @@ heat = Image.open('assets/heat.png')
 heat = heat.resize((100, 80), Image.ANTIALIAS)
 heat = ImageTk.PhotoImage(heat)
 
+info = Image.open('assets/New Assets/instruction.png')
+info = info.resize((100, 100), Image.ANTIALIAS)
+info = ImageTk.PhotoImage(info)
+
 ###################
 #### FUNCTIONS #### 
 ###################
+
+# click for more info
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tw = None
+        
+    def show_tooltip(self):
+        if not self.tw:
+            x, y, cx, cy = self.widget.bbox("insert")
+            x += self.widget.winfo_rootx() + 25
+            y += self.widget.winfo_rooty() + 20
+            self.tw = tk.Toplevel(self.widget)
+            self.tw.geometry("+%d+%d" % (x, y))
+            self.tw.attributes("-topmost", True)
+            label = tk.Label(self.tw, text=self.text, justify="left", background="#ffffff", relief="solid", borderwidth=1, font=("tahoma", "8", "normal"))
+            label.pack(ipadx=1)
+        
+    def hide_tooltip(self):
+        if self.tw:
+            self.tw.destroy()
+            self.tw = None
 
 # power button pressed
 def power_pressed():
@@ -322,6 +349,15 @@ current_temperature_text = tk.Label(root, text="Current Temperature!")
 current_temperature_label = tk.Label(root)
 
 ###################
+## INSTRUCTIONS ###
+###################
+
+# show user manual when clicked, remove when clicking anywhere else
+instruction = tk.Button(root, image = info, borderwidth=0, highlightthickness=0)
+tooltip = Tooltip(instruction, "This is a tooltip!")
+instruction.config(command=tooltip.show_tooltip)
+
+###################
 # FUNCTION CALLS ##
 ###################
 
@@ -329,6 +365,8 @@ x = screen_width * 0.2
 y = screen_height * 0.2
 
 # adding objects to window
+instruction.place(x=x-100, y=y-100)
+
 power_button.place(x=x, y=y)
 heat_cool_button.place(x=x, y=y+100)
 
@@ -351,4 +389,5 @@ update_temperature_thread = Thread(target = update_temperature, args = ())
 update_temperature_thread.start()
 
 # start the tkinter event loop
+root.bind("<Button-1>", lambda event: tooltip.hide_tooltip()) # removes tooltip when clicked off of
 root.mainloop()
