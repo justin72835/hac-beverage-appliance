@@ -246,9 +246,36 @@ heat = Image.open('assets/heat.png')
 heat = heat.resize((100, 80), Image.ANTIALIAS)
 heat = ImageTk.PhotoImage(heat)
 
+info = Image.open('assets/New Assets/instruction.png')
+info = info.resize((50, 50), Image.ANTIALIAS)
+info = ImageTk.PhotoImage(info)
+
 ###################
 #### FUNCTIONS #### 
 ###################
+
+# click for more info
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tw = None
+        
+    def show_tooltip(self):
+        if not self.tw:
+            x, y, cx, cy = self.widget.bbox("insert")
+            x += self.widget.winfo_rootx() + 25
+            y += self.widget.winfo_rooty() + 20
+            self.tw = tk.Toplevel(self.widget)
+            self.tw.geometry("+%d+%d" % (x, y))
+            self.tw.attributes("-topmost", True)
+            label = tk.Label(self.tw, text=self.text, justify="left", background="#ffffff", relief="solid", borderwidth=1, font=("tahoma", "8", "normal"))
+            label.pack(ipadx=1)
+        
+    def hide_tooltip(self):
+        if self.tw:
+            self.tw.destroy()
+            self.tw = None
 
 # power button pressed
 def power_pressed():
@@ -394,28 +421,31 @@ current_temperature_label = tk.Label(root)
 ###################
 
 x = screen_width * 0.2
-y = screen_height * 0.2
+y = screen_height * 0.5
 
 # adding objects to window
-power_button.place(x=x, y=y)
-heat_cool_button.place(x=x, y=y+100)
+instruction.place(x=x/1.5+x/3, y=y/2)
 
-inlet_up_button.place(x=x+190, y=y)
-inlet_down_button.place(x=x+190, y=y+80)
-outlet_up_button.place(x=x+280, y=y)
-outlet_down_button.place(x=x+280, y=y+80)
+power_button.place(x=x+x/3, y=y/1.5)
+heat_cool_button.place(x=x+x/3, y=y/1.1)
 
-current_temperature_text.place(x=x+470, y=y+20)
-current_temperature_label.place(x=x+470, y=y+50)
-desired_temparature_text.place(x=x+470, y=y+120)
-desired_temperature_entry.place(x=x+470, y=y+150)
+inlet_up_button.place(x=x/0.67+x/3.5, y=y/1.48)
+inlet_down_button.place(x=x/0.67+x/3.5, y=y/1.14)
+outlet_up_button.place(x=x/0.57+x/3.5, y=y/1.48)
+outlet_down_button.place(x=x/0.57+x/3.5, y=y/1.14)
 
-start_button.place(x=x+690, y=y)
-clean_button.place(x=x+690, y=y+100)
+current_temperature_text.place(x=x/0.44+x/3.5, y=y/1.4)
+current_temperature_label.place(x=x/0.44+x/3.5, y=y/1.27)
+desired_temparature_text.place(x=x/0.44+x/3.5, y=y/1.08)
+desired_temperature_entry.place(x=x/0.44+x/3.5, y=y/1.003)
+
+start_button.place(x=x/0.34+x/4, y=y/1.5)
+clean_button.place(x=x/0.34+x/4, y=y/1.1)
 
 # update temperature thread
 update_temperature_thread = Thread(target = update_temperature, args = ())
 update_temperature_thread.start()
 
 # start the tkinter event loop
+root.bind("<Button-1>", lambda event: tooltip.hide_tooltip()) # removes tooltip when clicked off of
 root.mainloop()
