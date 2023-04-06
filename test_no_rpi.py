@@ -365,23 +365,23 @@ x = screen_width * 0.2
 y = screen_height * 0.5
 
 # adding objects to window
-instruction.place(x=x/1.5, y=y/2)
+instruction.place(x=x/1.5+x/3, y=y/2)
 
-power_button.place(x=x, y=y/1.5)
-heat_cool_button.place(x=x, y=y/1.1)
+power_button.place(x=x+x/3, y=y/1.5)
+heat_cool_button.place(x=x+x/3, y=y/1.1)
 
-inlet_up_button.place(x=x/0.67, y=y/1.48)
-inlet_down_button.place(x=x/0.67, y=y/1.14)
-outlet_up_button.place(x=x/0.57, y=y/1.48)
-outlet_down_button.place(x=x/0.57, y=y/1.14)
+inlet_up_button.place(x=x/0.67+x/3.5, y=y/1.48)
+inlet_down_button.place(x=x/0.67+x/3.5, y=y/1.14)
+outlet_up_button.place(x=x/0.57+x/3.5, y=y/1.48)
+outlet_down_button.place(x=x/0.57+x/3.5, y=y/1.14)
 
-current_temperature_text.place(x=x/0.44, y=y/1.4)
-current_temperature_label.place(x=x/0.44, y=y/1.27)
-desired_temparature_text.place(x=x/0.44, y=y/1.08)
-desired_temperature_entry.place(x=x/0.44, y=y/1.003)
+current_temperature_text.place(x=x/0.44+x/3.5, y=y/1.4)
+current_temperature_label.place(x=x/0.44+x/3.5, y=y/1.27)
+desired_temparature_text.place(x=x/0.44+x/3.5, y=y/1.08)
+desired_temperature_entry.place(x=x/0.44+x/3.5, y=y/1.003)
 
-start_button.place(x=x/0.34, y=y/1.5)
-clean_button.place(x=x/0.34, y=y/1.1)
+start_button.place(x=x/0.34+x/4, y=y/1.5)
+clean_button.place(x=x/0.34+x/4, y=y/1.1)
 
 # update temperature thread
 current_temperature_lock = Lock()
