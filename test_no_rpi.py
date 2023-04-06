@@ -178,7 +178,7 @@ heat = heat.resize((100, 80), Image.ANTIALIAS)
 heat = ImageTk.PhotoImage(heat)
 
 info = Image.open('assets/New Assets/instruction.png')
-info = info.resize((100, 100), Image.ANTIALIAS)
+info = info.resize((50, 50), Image.ANTIALIAS)
 info = ImageTk.PhotoImage(info)
 
 ###################
@@ -362,26 +362,26 @@ instruction.config(command=tooltip.show_tooltip)
 ###################
 
 x = screen_width * 0.2
-y = screen_height * 0.2
+y = screen_height * 0.5
 
 # adding objects to window
-instruction.place(x=x-100, y=y-100)
+instruction.place(x=x/1.5, y=y/2)
 
-power_button.place(x=x, y=y)
-heat_cool_button.place(x=x, y=y+100)
+power_button.place(x=x, y=y/1.5)
+heat_cool_button.place(x=x, y=y/1.1)
 
-inlet_up_button.place(x=x+190, y=y)
-inlet_down_button.place(x=x+190, y=y+80)
-outlet_up_button.place(x=x+280, y=y)
-outlet_down_button.place(x=x+280, y=y+80)
+inlet_up_button.place(x=x/0.67, y=y/1.48)
+inlet_down_button.place(x=x/0.67, y=y/1.14)
+outlet_up_button.place(x=x/0.57, y=y/1.48)
+outlet_down_button.place(x=x/0.57, y=y/1.14)
 
-current_temperature_text.place(x=x+470, y=y+20)
-current_temperature_label.place(x=x+470, y=y+50)
-desired_temparature_text.place(x=x+470, y=y+120)
-desired_temperature_entry.place(x=x+470, y=y+150)
+current_temperature_text.place(x=x/0.44, y=y/1.4)
+current_temperature_label.place(x=x/0.44, y=y/1.27)
+desired_temparature_text.place(x=x/0.44, y=y/1.08)
+desired_temperature_entry.place(x=x/0.44, y=y/1.003)
 
-start_button.place(x=x+690, y=y)
-clean_button.place(x=x+690, y=y+100)
+start_button.place(x=x/0.34, y=y/1.5)
+clean_button.place(x=x/0.34, y=y/1.1)
 
 # update temperature thread
 current_temperature_lock = Lock()
