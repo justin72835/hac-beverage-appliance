@@ -77,6 +77,7 @@ outlet_up_global = False
 outlet_down_global = False
 
 current_temperature_global = 0
+frame_global = 0
 
 ###################
 ##### SETUP ####### 
@@ -90,25 +91,8 @@ screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 root.geometry(f"{screen_width}x{screen_height}")
 
-# threads and functions for tube actuation
-def inlet_up_check():
-    while inlet_up_global:
-        move_up(DIR_inlet, STEP_inlet)
-
-def inlet_down_check():
-    while inlet_down_global:
-        move_down(DIR_inlet, STEP_inlet)
-
-def outlet_up_check():
-    while outlet_up_global:
-        move_up(DIR_outlet, STEP_outlet)
-
-def outlet_down_check():
-    while outlet_down_global:
-        move_down(DIR_outlet, STEP_outlet)
-
 ###################
-#### FUNCTIONS #### 
+#### INITIAL ###### 
 ###################
 
 # power button pressed
@@ -121,6 +105,18 @@ def power_pressed():
         power_button.config(image=power_on_image)
         power_global = True
 
+# click to get started
+initial_frame = tk.Frame(root)
+
+# power button
+power_on_image = tk.PhotoImage(file="assets/power_on.png")
+power_off_image = tk.PhotoImage(file="assets/power_off.png")
+power_button = tk.Button(initial_frame, image = power_on_image, command=power_pressed)
+
+###################
+##### MODES ####### 
+###################
+
 # heat/cool button pressed
 def heat_cool_pressed():
     global heat_cool_global
@@ -130,6 +126,49 @@ def heat_cool_pressed():
     else:
         heat_cool_button.config(image=heat_image)
         heat_cool_global = True
+
+# clean button pressed
+def clean_pressed():
+    clean_button.config(image=clean_shade_image)
+    clean_cycle()
+    clean_button.config(image=clean_image)
+
+# user selects heat, cool, and clean
+modes_frame = tk.Frame(root)
+
+# heat/cool button
+heat_image = tk.PhotoImage(file="assets/heat.png")
+cool_image = tk.PhotoImage(file="assets/cool.png")
+heat_cool_button = tk.Button(modes_frame, image = heat_image, command=heat_cool_pressed)
+
+# clean button
+clean_image = tk.PhotoImage(file="assets/clean.png")
+clean_shade_image = tk.PhotoImage(file="assets/clean_shade.png")
+clean_button = tk.Button(modes_frame, image = clean_image, command=clean_pressed)
+
+###################
+## CONFIGURATION ## 
+###################
+
+# thread for inlet up
+def inlet_up_check():
+    while inlet_up_global:
+        move_up(DIR_inlet, STEP_inlet)
+
+# thread for inlet down
+def inlet_down_check():
+    while inlet_down_global:
+        move_down(DIR_inlet, STEP_inlet)
+
+# thread for outlet up
+def outlet_up_check():
+    while outlet_up_global:
+        move_up(DIR_outlet, STEP_outlet)
+
+# thread for outlet down
+def outlet_down_check():
+    while outlet_down_global:
+        move_down(DIR_outlet, STEP_outlet)
 
 # inlet up button pressed and released
 def inlet_up_pressed(event):
@@ -187,11 +226,45 @@ def start_pressed():
     start_cycle_thread.start()
     start_button.config(image=start_image)
 
-# clean button pressed
-def clean_pressed():
-    clean_button.config(image=clean_shade_image)
-    clean_cycle()
-    clean_button.config(image=clean_image)
+# user configures device accordingly
+configuration_frame = tk.Frame(root)
+
+# up and down buttons
+inlet_up_image = tk.PhotoImage(file="assets/inlet_up.png")
+inlet_up_shade_image = tk.PhotoImage(file="assets/inlet_up_shade.png")
+inlet_up_button = tk.Button(configuration_frame, image = inlet_up_image)
+inlet_up_button.bind("<ButtonPress-1>", inlet_up_pressed)
+inlet_up_button.bind("<ButtonRelease-1>", inlet_up_released)
+
+inlet_down_image = tk.PhotoImage(file="assets/inlet_down.png")
+inlet_down_shade_image = tk.PhotoImage(file="assets/inlet_down_shade.png")
+inlet_down_button = tk.Button(configuration_frame, image = inlet_down_image)
+inlet_down_button.bind("<ButtonPress-1>", inlet_down_pressed)
+inlet_down_button.bind("<ButtonRelease-1>", inlet_down_released)
+
+outlet_up_image = tk.PhotoImage(file="assets/outlet_up.png")
+outlet_up_shade_image = tk.PhotoImage(file="assets/outlet_up_shade.png")
+outlet_up_button = tk.Button(configuration_frame, image = outlet_up_image)
+outlet_up_button.bind("<ButtonPress-1>", outlet_up_pressed)
+outlet_up_button.bind("<ButtonRelease-1>", outlet_up_released)
+
+outlet_down_image = tk.PhotoImage(file="assets/outlet_down.png")
+outlet_down_shade_image = tk.PhotoImage(file="assets/outlet_down_shade.png")
+outlet_down_button = tk.Button(configuration_frame, image = outlet_down_image)
+outlet_down_button.bind("<ButtonPress-1>", outlet_down_pressed)
+outlet_down_button.bind("<ButtonRelease-1>", outlet_down_released)
+
+# start button
+start_image = tk.PhotoImage(file="assets/start.png")
+start_shade_image = tk.PhotoImage(file="assets/start_shade.png")
+start_button = tk.Button(configuration_frame, image = start_image, command=start_pressed)
+
+# desired temperature
+desired_temperature_entry = tk.Entry(configuration_frame)
+
+###################
+#### PROCESS ###### 
+###################
 
 # updates temperature reading every second
 def update_temperature():
@@ -201,78 +274,18 @@ def update_temperature():
         current_temperature_global += 1
         current_temperature_label.config(text = current_temperature_global)
 
-
-###################
-##### BUTTONS ##### 
-###################  
-
-# power button
-power_on_image = tk.PhotoImage(file="assets/power_on.png")
-power_off_image = tk.PhotoImage(file="assets/power_off.png")
-power_button = tk.Button(root, image = power_on_image, command=power_pressed)
-
-# heat/cool button
-heat_image = tk.PhotoImage(file="assets/heat.png")
-cool_image = tk.PhotoImage(file="assets/cool.png")
-heat_cool_button = tk.Button(root, image = heat_image, command=heat_cool_pressed)
-
-# up and down buttons
-inlet_up_image = tk.PhotoImage(file="assets/inlet_up.png")
-inlet_up_shade_image = tk.PhotoImage(file="assets/inlet_up_shade.png")
-inlet_up_button = tk.Button(root, image = inlet_up_image)
-inlet_up_button.bind("<ButtonPress-1>", inlet_up_pressed)
-inlet_up_button.bind("<ButtonRelease-1>", inlet_up_released)
-
-inlet_down_image = tk.PhotoImage(file="assets/inlet_down.png")
-inlet_down_shade_image = tk.PhotoImage(file="assets/inlet_down_shade.png")
-inlet_down_button = tk.Button(root, image = inlet_down_image)
-inlet_down_button.bind("<ButtonPress-1>", inlet_down_pressed)
-inlet_down_button.bind("<ButtonRelease-1>", inlet_down_released)
-
-outlet_up_image = tk.PhotoImage(file="assets/outlet_up.png")
-outlet_up_shade_image = tk.PhotoImage(file="assets/outlet_up_shade.png")
-outlet_up_button = tk.Button(root, image = outlet_up_image)
-outlet_up_button.bind("<ButtonPress-1>", outlet_up_pressed)
-outlet_up_button.bind("<ButtonRelease-1>", outlet_up_released)
-
-outlet_down_image = tk.PhotoImage(file="assets/outlet_down.png")
-outlet_down_shade_image = tk.PhotoImage(file="assets/outlet_down_shade.png")
-outlet_down_button = tk.Button(root, image = outlet_down_image)
-outlet_down_button.bind("<ButtonPress-1>", outlet_down_pressed)
-outlet_down_button.bind("<ButtonRelease-1>", outlet_down_released)
-
-# start button
-start_image = tk.PhotoImage(file="assets/start.png")
-start_shade_image = tk.PhotoImage(file="assets/start_shade.png")
-start_button = tk.Button(root, image = start_image, command=start_pressed)
-
-
-# clean button
-clean_image = tk.PhotoImage(file="assets/clean.png")
-clean_shade_image = tk.PhotoImage(file="assets/clean_shade.png")
-clean_button = tk.Button(root, image = clean_image, command=clean_pressed)
-
-###################
-##### ENTRIES ##### 
-###################  
-
-# desired temperature
-desired_temperature_entry = tk.Entry(root)
-
-###################
-##### LABLES ###### 
-###################
+# displays temperature and time elapsed
+process_frame = tk.Frame(root)
 
 # current temperature
-current_temperature_label = tk.Label(root)
+current_temperature_label = tk.Label(process_frame)
 
 ###################
-# FUNCTION CALLS ##
-###################
+##### WIDGETS ##### 
+###################  
 
 # adding objects to window
 current_temperature_label.pack()
-
 desired_temperature_entry.pack()
 power_button.pack()
 heat_cool_button.pack()
@@ -283,8 +296,10 @@ outlet_down_button.pack()
 start_button.pack()
 clean_button.pack()
 
+# list of frames
+frames = [initial_frame, modes_frame, configuration_frame, process_frame]
+
 # update temperature thread
-current_temperature_lock = Lock()
 update_temperature_thread = Thread(target = update_temperature, args = ())
 update_temperature_thread.start()
 
