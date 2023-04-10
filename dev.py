@@ -38,7 +38,7 @@ class Application(tk.Tk):
                 "forward" : 0,
                 "reverse" : 1,
                 "SWITCH" : self.SWITCH_inlet_top,
-                "clicked" : False
+                "open" : True
             },
             "inlet_down" : {
                 "DIR" : self.DIR_inlet,
@@ -46,7 +46,7 @@ class Application(tk.Tk):
                 "forward" : 1,
                 "reverse" : 0,
                 "SWITCH" : self.SWITCH_inlet_bottom,
-                "clicked" : False
+                "open" : True
             },
             "outlet_up" : {
                 "DIR" : self.DIR_outlet,
@@ -54,7 +54,7 @@ class Application(tk.Tk):
                 "forward" : 0,
                 "reverse" : 1,
                 "SWITCH" : self.SWITCH_outlet_top,
-                "clicked" : False
+                "open" : True
             },
             "outlet_down" : {
                 "DIR" : self.DIR_outlet,
@@ -62,11 +62,11 @@ class Application(tk.Tk):
                 "forward" : 1,
                 "reverse" : 0,
                 "SWITCH" : self.SWITCH_outlet_bottom,
-                "clicked" : False
+                "open" : True
             }
         }
 
-        self.stepper_delay = 0.00005
+        self.stepper_delay = 0.001
 
         # communicating with pump motor
         self.MOTOR = 22
@@ -120,9 +120,9 @@ class Application(tk.Tk):
             
             id = "inlet_up"
 
-            self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
+            self.ACTUATION[id]["open"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
 
-            if self.ACTUATION[id]["clicked"]:
+            if not self.ACTUATION[id]["open"]:
                 self.move_tube(id)
 
 
@@ -170,19 +170,7 @@ class Application(tk.Tk):
             self.current_temp = self.get_current_temp()
 
     def move_tube(self, id):
-        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if not self.ACTUATION[id]["clicked"] else self.ACTUATION[id]["reverse"])
-        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
-        sleep(self.stepper_delay)
-        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
-        sleep(self.stepper_delay)
-    
-    def reverse_tube(self, id):
-        self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
-
-        if GPIO.input(self.ACTUATION[id]["SWITCH"]):
-            self.reverse_tube(id)
-
-        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"])
+        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if self.ACTUATION[id]["open"] else self.ACTUATION[id]["reverse"])
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
         sleep(self.stepper_delay)
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
@@ -312,7 +300,7 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        while self.is_pressed and not self.master.ACTUATION[id]["clicked"]:
+        while self.is_pressed and self.master.ACTUATION[id]["open"]:
             self.master.move_tube(id)
 
     def pressed(self, id):
@@ -424,7 +412,7 @@ class Process(CustomFrame):
 
         self.master.update()
         
-        while not self.master.ACTUATION["inlet_up"]["clicked"]:
+        while self.master.ACTUATION["inlet_up"]["open"]:
             self.master.move_tube("inlet_up")
 
         self.master.stop_pump()
