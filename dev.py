@@ -66,7 +66,7 @@ class Application(tk.Tk):
             }
         }
 
-        self.stepper_delay = 0.0004
+        self.stepper_delay = 0.0002
 
         # communicating with pump motor
         self.MOTOR = 22
@@ -148,7 +148,7 @@ class Application(tk.Tk):
             GPIO.output(self.SCK, GPIO.LOW)
 
         GPIO.output(self.SCK, GPIO.HIGH)
-        error_tc = GPIO.input(SO)
+        error_tc = GPIO.input(self.SO)
         GPIO.output(self.SCK, GPIO.LOW)
 
         for i in range(2):
