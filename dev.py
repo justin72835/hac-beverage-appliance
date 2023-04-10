@@ -112,11 +112,19 @@ class Application(tk.Tk):
     
     def click_checker(self):
         while True:
-            for id in self.ACTUATION:
-                self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
+            # for id in self.ACTUATION:
+            #     self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
 
-                if self.ACTUATION[id]["clicked"]:
-                    self.move_tube(id)
+            #     if self.ACTUATION[id]["clicked"]:
+            #         self.move_tube(id)
+            
+            id = "inlet_up"
+
+            self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
+
+            if self.ACTUATION[id]["clicked"]:
+                self.move_tube(id)
+
 
     def get_current_temp(self):
         temps = []
