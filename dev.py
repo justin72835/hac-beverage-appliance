@@ -100,8 +100,8 @@ class Application(tk.Tk):
         GPIO.setup(self.SO, GPIO.IN)
 
         # click checker thread
-        self.click_checker_thread = Thread(target = self.click_checker, args = ())
-        self.click_checker_thread.start()
+        # self.click_checker_thread = Thread(target = self.click_checker, args = ())
+        # self.click_checker_thread.start()
 
         # current temperature
         self.current_temp = float('-inf')
@@ -301,14 +301,7 @@ class Adjust(CustomFrame):
     
     def check(self, id):
         while self.is_pressed and self.master.ACTUATION[id]["open"]:
-            # self.master.move_tube(id)
-
-            GPIO.output(self.master.ACTUATION[id]["DIR"], self.master.ACTUATION[id]["forward"] if self.master.ACTUATION[id]["open"] else self.master.ACTUATION[id]["reverse"])
-            GPIO.output(self.master.ACTUATION[id]["STEP"], GPIO.HIGH)
-            sleep(self.master.stepper_delay)
-            GPIO.output(self.master.ACTUATION[id]["STEP"], GPIO.LOW)
-            sleep(self.master.stepper_delay)
-
+            self.master.move_tube(id)
 
     def pressed(self, id):
         self.is_pressed = True
