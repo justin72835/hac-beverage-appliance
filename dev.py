@@ -66,7 +66,7 @@ class Application(tk.Tk):
             }
         }
 
-        self.stepper_delay = 0.000625
+        self.stepper_delay = 0.0004
 
         # communicating with pump motor
         self.MOTOR = 22
