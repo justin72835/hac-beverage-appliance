@@ -171,7 +171,6 @@ class Application(tk.Tk):
 
     def move_tube(self, id):
         GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if self.ACTUATION[id]["open"] else self.ACTUATION[id]["reverse"])
-        print(self.ACTUATION[id]["forward"] if self.ACTUATION[id]["open"] else self.ACTUATION[id]["reverse"])
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
         sleep(self.stepper_delay)
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
@@ -301,8 +300,14 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        while self.is_pressed and self.master.ACTUATION[id]["open"]:
+        # while self.is_pressed and self.master.ACTUATION[id]["open"]:
+        #     self.master.move_tube(id)
+
+        while True:
             self.master.move_tube(id)
+
+            if not self.is_pressed or not self.master.ACTUATION[id]["open"]:
+                break
 
     def pressed(self, id):
         self.is_pressed = True
