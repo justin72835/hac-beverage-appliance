@@ -25,7 +25,7 @@ class Application(tk.Tk):
         self.STEP_inlet = 8
         self.STEP_outlet = 18
 
-        self.SWITCH_inlet_top = 0
+        self.SWITCH_inlet_top = 37
         self.SWITCH_inlet_bottom = 0
         self.SWITCH_outlet_top = 0
         self.SWITCH_outlet_bottom = 0
