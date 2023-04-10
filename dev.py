@@ -100,8 +100,8 @@ class Application(tk.Tk):
         GPIO.setup(self.SO, GPIO.IN)
 
         # click checker thread
-        # self.click_checker_thread = Thread(target = self.click_checker, args = ())
-        # self.click_checker_thread.start()
+        self.click_checker_thread = Thread(target = self.click_checker, args = ())
+        self.click_checker_thread.start()
 
         # current temperature
         self.current_temp = float('-inf')
