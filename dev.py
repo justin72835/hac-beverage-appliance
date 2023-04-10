@@ -144,7 +144,7 @@ class Application(tk.Tk):
             
         for i in range(11, -1, -1):
             GPIO.output(self.SCK, GPIO.HIGH)
-            val += (GPIO.input(SO) * (2 ** i))
+            val += (GPIO.input(self.SO) * (2 ** i))
             GPIO.output(self.SCK, GPIO.LOW)
 
         GPIO.output(self.SCK, GPIO.HIGH)
