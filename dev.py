@@ -300,7 +300,10 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        while self.is_pressed and self.master.ACTUATION[id]["open"]:
+        # while self.is_pressed and self.master.ACTUATION[id]["open"]:
+        #     self.master.move_tube(id)
+        
+        while self.is_pressed:
             self.master.move_tube(id)
 
     def pressed(self, id):
