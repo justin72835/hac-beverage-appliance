@@ -300,14 +300,15 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        # while self.is_pressed and self.master.ACTUATION[id]["open"]:
-        #     self.master.move_tube(id)
+        while self.is_pressed and self.master.ACTUATION[id]["open"]:
+            # self.master.move_tube(id)
 
-        while True:
-            self.master.move_tube(id)
+            GPIO.output(self.master.ACTUATION[id]["DIR"], self.master.ACTUATION[id]["forward"] if self.master.ACTUATION[id]["open"] else self.master.ACTUATION[id]["reverse"])
+            GPIO.output(self.master.ACTUATION[id]["STEP"], GPIO.HIGH)
+            sleep(self.master.stepper_delay)
+            GPIO.output(self.master.ACTUATION[id]["STEP"], GPIO.LOW)
+            sleep(self.master.stepper_delay)
 
-            if not self.is_pressed or not self.master.ACTUATION[id]["open"]:
-                break
 
     def pressed(self, id):
         self.is_pressed = True
