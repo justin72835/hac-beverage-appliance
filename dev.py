@@ -26,9 +26,9 @@ class Application(tk.Tk):
         self.STEP_outlet = 18
 
         self.SWITCH_inlet_top = 37
-        self.SWITCH_inlet_bottom = 0
-        self.SWITCH_outlet_top = 0
-        self.SWITCH_outlet_bottom = 0
+        self.SWITCH_inlet_bottom = 37
+        self.SWITCH_outlet_top = 37
+        self.SWITCH_outlet_bottom = 37
 
         # communicating with stepper motors and switches
         self.ACTUATION = {
