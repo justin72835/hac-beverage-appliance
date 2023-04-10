@@ -37,32 +37,28 @@ class Application(tk.Tk):
                 "STEP" : self.STEP_inlet,
                 "forward" : 0,
                 "reverse" : 1,
-                "SWITCH" : self.SWITCH_inlet_top,
-                "open" : True
+                "SWITCH" : self.SWITCH_inlet_top
             },
             "inlet_down" : {
                 "DIR" : self.DIR_inlet,
                 "STEP" : self.STEP_inlet,
                 "forward" : 1,
                 "reverse" : 0,
-                "SWITCH" : self.SWITCH_inlet_bottom,
-                "open" : True
+                "SWITCH" : self.SWITCH_inlet_bottom
             },
             "outlet_up" : {
                 "DIR" : self.DIR_outlet,
                 "STEP" : self.STEP_outlet,
                 "forward" : 0,
                 "reverse" : 1,
-                "SWITCH" : self.SWITCH_outlet_top,
-                "open" : True
+                "SWITCH" : self.SWITCH_outlet_top
             },
             "outlet_down" : {
                 "DIR" : self.DIR_outlet,
                 "STEP" : self.STEP_outlet,
                 "forward" : 1,
                 "reverse" : 0,
-                "SWITCH" : self.SWITCH_outlet_bottom,
-                "open" : True
+                "SWITCH" : self.SWITCH_outlet_bottom
             }
         }
 
@@ -99,32 +95,12 @@ class Application(tk.Tk):
         GPIO.setup(self.SCK, GPIO.OUT, initial = GPIO.LOW)
         GPIO.setup(self.SO, GPIO.IN)
 
-        # click checker thread
-        self.click_checker_thread = Thread(target = self.click_checker, args = ())
-        self.click_checker_thread.start()
-
         # current temperature
         self.current_temp = float('-inf')
 
         # update temperature thread
         self.update_temp_thread = Thread(target = self.update_temp, args = ())
         self.update_temp_thread.start()
-    
-    def click_checker(self):
-        while True:
-            # for id in self.ACTUATION:
-            #     self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
-
-            #     if self.ACTUATION[id]["clicked"]:
-            #         self.move_tube(id)
-            
-            id = "inlet_up"
-
-            self.ACTUATION[id]["open"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
-
-            if not self.ACTUATION[id]["open"]:
-                self.move_tube(id)
-
 
     def get_current_temp(self):
         temps = []
@@ -169,8 +145,8 @@ class Application(tk.Tk):
         while True:
             self.current_temp = self.get_current_temp()
 
-    def move_tube(self, id):
-        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if self.ACTUATION[id]["open"] else self.ACTUATION[id]["reverse"])
+    def move_tube(self, id, open):
+        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if open else self.ACTUATION[id]["reverse"])
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
         sleep(self.stepper_delay)
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
@@ -300,8 +276,11 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        while self.is_pressed and self.master.ACTUATION[id]["open"]:
-            self.master.move_tube(id)
+        while self.is_pressed and GPIO.input(self.ACTUATION[id]["SWITCH"]):
+            self.master.move_tube(id, True)
+
+        while not GPIO.input(self.ACTUATION[id]["SWITCH"]):
+            self.master.move_tube(id, False)
 
     def pressed(self, id):
         self.is_pressed = True
@@ -412,8 +391,11 @@ class Process(CustomFrame):
 
         self.master.update()
         
-        while self.master.ACTUATION["inlet_up"]["open"]:
-            self.master.move_tube("inlet_up")
+        while GPIO.input(self.ACTUATION["inlet_up"]["SWITCH"]):
+            self.master.move_tube("inlet_up", True)
+
+        while not GPIO.input(self.ACTUATION["inlet_up"]["SWITCH"]):
+            self.master.move_tube("inlet_up", False)
 
         self.master.stop_pump()
 
