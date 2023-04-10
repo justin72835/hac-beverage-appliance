@@ -161,30 +161,6 @@ class Application(tk.Tk):
         while True:
             self.current_temp = self.get_current_temp()
 
-    def reset(self):
-        self.mode = float('-inf')
-        self.target_temp = float('-inf')
-
-        if self.frames:
-            for frame in self.frames:
-                self.frames[frame].destroy()
-        
-        self.frames["initial"] = Initial(self)
-        self.frames["mode"] = Mode(self)
-        self.frames["adjust"] = Adjust(self)
-        self.frames["temp"] = Temp(self)
-        self.frames["process"] = Process(self)
-        self.current_frame = None
-
-        self.switch_frame("initial")
-
-    def switch_frame(self, frame):
-        if self.current_frame:
-            self.current_frame.pack_forget()
-
-        self.current_frame = self.frames[frame]
-        self.current_frame.pack(fill='both', expand=True)
-
     def move_tube(self, id):
         GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if not self.ACTUATION[id]["clicked"] else self.ACTUATION[id]["reverse"])
         GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
@@ -209,6 +185,30 @@ class Application(tk.Tk):
 
     def stop_pump(self):
         GPIO.output(self.MOTOR, GPIO.LOW)
+
+    def reset(self):
+        self.mode = ""
+        self.target_temp = float('-inf')
+
+        if self.frames:
+            for frame in self.frames:
+                self.frames[frame].destroy()
+        
+        self.frames["initial"] = Initial(self)
+        self.frames["mode"] = Mode(self)
+        self.frames["adjust"] = Adjust(self)
+        self.frames["temp"] = Temp(self)
+        self.frames["process"] = Process(self)
+        self.current_frame = None
+
+        self.switch_frame("initial")
+
+    def switch_frame(self, frame):
+        if self.current_frame:
+            self.current_frame.pack_forget()
+
+        self.current_frame = self.frames[frame]
+        self.current_frame.pack(fill='both', expand=True)
 
 class CustomButton(tk.Button):
     def __init__(self, parent, *args, **kwargs):
@@ -251,15 +251,15 @@ class Mode(CustomFrame):
         self.clean_button.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 2 // 3, anchor = "center")
     
     def heat_pressed(self):
-        self.master.mode = 0
+        self.master.mode = "heat"
         self.master.switch_frame("adjust")
 
     def cool_pressed(self):
-        self.master.mode = 1
+        self.master.mode = "cool"
         self.master.switch_frame("adjust")
 
     def clean_pressed(self):
-        self.master.mode = 2
+        self.master.mode = "clean"
         self.master.switch_frame("adjust")
 
 class Adjust(CustomFrame):
@@ -316,7 +316,7 @@ class Adjust(CustomFrame):
         self.is_pressed = False
         
     def next_pressed(self):
-        if self.master.mode == 2:
+        if self.master.mode == "clean":
             self.master.switch_frame("process")
         else:
             self.master.switch_frame("temp")
@@ -352,7 +352,7 @@ class Temp(CustomFrame):
 
     def check(self, id):
         start_time = perf_counter()
-        while self.is_pressed and 0 <= self.target_temp + id <= 50:
+        while self.is_pressed and (self.master.current_temp < self.target_temp <= 50 and self.master.mode == "heat" or 0 <= self.target_temp < self.master.current_temp and self.master.mode == "cool"):
             self.target_temp += id
             self.temp_label.config(text = f"{self.target_temp:.1f}\u00b0C")
 
@@ -387,7 +387,7 @@ class Process(CustomFrame):
 
         self.master.run_pump()
 
-        if self.master.mode == 2:
+        if self.master.mode == "clean":
             clean_duration = 10
         
             self.timer_label = CustomLabel(self)
@@ -406,7 +406,7 @@ class Process(CustomFrame):
             self.current_temp_label = CustomLabel(self)
             self.current_temp_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 3 // 5, anchor = "center")
 
-            while self.master.current_temp <= self.master.target_temp and self.master.mode == 0 or self.master.current_temp <= self.master.target_temp and self.master.mode == 1:
+            while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
                 self.timer_label.config(text = f"Time elapsed: {int(perf_counter() - start_time)} seconds")
                 self.current_temp_label.config(text = f"Currnet temperature: {self.master.current_temp:.1f}\u00b0C")
                 self.master.update()
