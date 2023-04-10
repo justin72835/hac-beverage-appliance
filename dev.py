@@ -1,6 +1,7 @@
 from threading import Thread, Lock
 from time import sleep, perf_counter
 import random
+import RPi.GPIO as GPIO
 import tkinter as tk
 
 class Application(tk.Tk):
@@ -18,17 +19,54 @@ class Application(tk.Tk):
         self.reset()
 
     def setup_hardware(self):
-        # communicating with stepper motors
         self.DIR_inlet = 10
         self.DIR_outlet = 16
+
         self.STEP_inlet = 8
         self.STEP_outlet = 18
 
-        # communicating with switches
         self.SWITCH_inlet_top = 0
         self.SWITCH_inlet_bottom = 0
         self.SWITCH_outlet_top = 0
         self.SWITCH_outlet_bottom = 0
+
+        # communicating with stepper motors and switches
+        self.ACTUATION = {
+            "inlet_up" : {
+                "DIR" : self.DIR_inlet,
+                "STEP" : self.STEP_inlet,
+                "forward" : 0,
+                "reverse" : 1,
+                "SWITCH" : self.SWITCH_inlet_top,
+                "clicked" : False
+            },
+            "inlet_down" : {
+                "DIR" : self.DIR_inlet,
+                "STEP" : self.STEP_inlet,
+                "forward" : 1,
+                "reverse" : 0,
+                "SWITCH" : self.SWITCH_inlet_bottom,
+                "clicked" : False
+            },
+            "outlet_up" : {
+                "DIR" : self.DIR_outlet,
+                "STEP" : self.STEP_outlet,
+                "forward" : 0,
+                "reverse" : 1,
+                "SWITCH" : self.SWITCH_outlet_top,
+                "clicked" : False
+            },
+            "outlet_down" : {
+                "DIR" : self.DIR_outlet,
+                "STEP" : self.STEP_outlet,
+                "forward" : 1,
+                "reverse" : 0,
+                "SWITCH" : self.SWITCH_outlet_bottom,
+                "clicked" : False
+            }
+        }
+
+        self.stepper_delay = 0.000625
 
         # communicating with pump motor
         self.MOTOR = 22
@@ -38,11 +76,32 @@ class Application(tk.Tk):
         self.SCK = 40
         self.SO = 35
 
-        # checks for switch contact
-        self.inlet_top_clicked = False
-        self.inlet_bottom_clicked = False
-        self.outlet_top_clicked = False
-        self.outlet_bottom_clicked = False
+        GPIO.cleanup()
+        GPIO.setmode(GPIO.BOARD)
+
+        # setting up stepper motors
+        GPIO.setup(self.DIR_inlet, GPIO.OUT)
+        GPIO.setup(self.DIR_outlet, GPIO.OUT)
+        GPIO.setup(self.STEP_inlet, GPIO.OUT)
+        GPIO.setup(self.STEP_outlet, GPIO.OUT)
+
+        # setting up switches
+        GPIO.setup(self.SWITCH_inlet_top, GPIO.IN)
+        GPIO.setup(self.SWITCH_inlet_bottom, GPIO.IN)
+        GPIO.setup(self.SWITCH_outlet_top, GPIO.IN)
+        GPIO.setup(self.SWITCH_outlet_bottom, GPIO.IN)
+
+        # setting up pump motor
+        GPIO.setup(self.MOTOR, GPIO.OUT)
+
+        # setting up MAX6675
+        GPIO.setup(self.CS, GPIO.OUT, initial = GPIO.HIGH)
+        GPIO.setup(self.SCK, GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(self.SO, GPIO.IN)
+
+        # click checker thread
+        self.click_checker_thread = Thread(target = self.click_checker, args = ())
+        self.click_checker_thread.start()
 
         # current temperature
         self.current_temp = float('-inf')
@@ -51,15 +110,56 @@ class Application(tk.Tk):
         self.update_temp_thread = Thread(target = self.update_temp, args = ())
         self.update_temp_thread.start()
     
+    def click_checker(self):
+        while True:
+            for id in self.ACTUATION:
+                self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
+
+                if self.ACTUATION[id]["clicked"]:
+                    self.move_tube(id)
+
     def get_current_temp(self):
-        return random.randint(0, 50)
+        temps = []
+
+        for n in range(5):
+            GPIO.output(self.CS, GPIO.LOW)
+            sleep(0.002)
+            GPIO.output(self.CS, GPIO.HIGH)
+            sleep(0.22)
+
+            GPIO.output(self.CS, GPIO.LOW)
+            GPIO.output(self.SCK, GPIO.HIGH)
+            sleep(0.001)
+            GPIO.output(self.SCK, GPIO.LOW)
+
+        val = 0
+            
+        for i in range(11, -1, -1):
+            GPIO.output(self.SCK, GPIO.HIGH)
+            val += (GPIO.input(SO) * (2 ** i))
+            GPIO.output(self.SCK, GPIO.LOW)
+
+        GPIO.output(self.SCK, GPIO.HIGH)
+        error_tc = GPIO.input(SO)
+        GPIO.output(self.SCK, GPIO.LOW)
+
+        for i in range(2):
+            GPIO.output(self.SCK, GPIO.HIGH)
+            sleep(0.001)
+            GPIO.output(self.SCK, GPIO.LOW)
+
+        GPIO.output(self.CS, GPIO.HIGH)
+
+        if error_tc != 0:
+            return -self.CS
+
+        temps.append(val * 0.23)
+
+        return sum(temps)/len(temps)
 
     def update_temp(self):
-        i = 0
         while True:
-            self.current_temp = i
-            i += 1
-            sleep(1)
+            self.current_temp = self.get_current_temp()
 
     def reset(self):
         self.mode = float('-inf')
@@ -85,14 +185,30 @@ class Application(tk.Tk):
         self.current_frame = self.frames[frame]
         self.current_frame.pack(fill='both', expand=True)
 
-    def move_tube(self, DIR, STEP, direction):
-        if direction:
-            print("down")
-        else:
-            print("up")
+    def move_tube(self, id):
+        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if not self.ACTUATION[id]["clicked"] else self.ACTUATION[id]["reverse"])
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
+        sleep(self.stepper_delay)
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
+        sleep(self.stepper_delay)
+    
+    def reverse_tube(self, id):
+        self.ACTUATION[id]["clicked"] = GPIO.input(self.ACTUATION[id]["SWITCH"])
+
+        if GPIO.input(self.ACTUATION[id]["SWITCH"]):
+            self.reverse_tube(id)
+
+        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"])
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
+        sleep(self.stepper_delay)
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
+        sleep(self.stepper_delay)
 
     def run_pump(self):
-        print("motor pulse")
+        GPIO.output(self.MOTOR, GPIO.HIGH)
+
+    def stop_pump(self):
+        GPIO.output(self.MOTOR, GPIO.LOW)
 
 class CustomButton(tk.Button):
     def __init__(self, parent, *args, **kwargs):
@@ -151,13 +267,6 @@ class Adjust(CustomFrame):
         super().__init__(master)
         self.is_pressed = False
 
-        self.button_map = {
-            0 : [self.master.DIR_inlet, self.master.STEP_inlet, 0, self.master.SWITCH_inlet_top],
-            1 : [self.master.DIR_inlet, self.master.STEP_inlet, 1, self.master.SWITCH_inlet_bottom],
-            2 : [self.master.DIR_outlet, self.master.STEP_outlet, 0, self.master.SWITCH_outlet_top],
-            3 : [self.master.DIR_outlet, self.master.STEP_outlet, 1, self.master.SWITCH_outlet_bottom],
-        }
-
         self.up_image = tk.PhotoImage(file = "resources/up.png")
         self.up_image = self.up_image
 
@@ -166,26 +275,26 @@ class Adjust(CustomFrame):
 
         self.inlet_up_button = CustomButton(self, image = self.up_image)
         self.inlet_up_button.place(x = self.master.screen_width * 4 // 9, y = self.master.screen_height * 1 // 3, anchor = "center")
-        self.inlet_up_button.bind("<ButtonPress-1>", lambda x : self.pressed(0))
-        self.inlet_up_button.bind("<ButtonRelease-1>", lambda x : self.released(0))
+        self.inlet_up_button.bind("<ButtonPress-1>", lambda x : self.pressed("inlet_up"))
+        self.inlet_up_button.bind("<ButtonRelease-1>", lambda x : self.released("inlet_up"))
 
         self.inlet_down_button = CustomButton(self, image = self.down_image)
         self.inlet_down_button.place(x = self.master.screen_width * 4 // 9, y = self.master.screen_height * 2 // 3, anchor = "center")
-        self.inlet_down_button.bind("<ButtonPress-1>", lambda x : self.pressed(1))
-        self.inlet_down_button.bind("<ButtonRelease-1>", lambda x : self.released(1))
+        self.inlet_down_button.bind("<ButtonPress-1>", lambda x : self.pressed("inlet_down"))
+        self.inlet_down_button.bind("<ButtonRelease-1>", lambda x : self.released("inlet_down"))
 
         self.inlet_label = CustomLabel(self, text = "Right")
         self.inlet_label.place(x = self.master.screen_width * 4 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
 
         self.outlet_up_button = CustomButton(self, image = self.up_image)
         self.outlet_up_button.place(x = self.master.screen_width * 2 // 9, y = self.master.screen_height * 1 // 3, anchor = "center")
-        self.outlet_up_button.bind("<ButtonPress-1>", lambda x : self.pressed(2))
-        self.outlet_up_button.bind("<ButtonRelease-1>", lambda x : self.released(2))
+        self.outlet_up_button.bind("<ButtonPress-1>", lambda x : self.pressed("outlet_up"))
+        self.outlet_up_button.bind("<ButtonRelease-1>", lambda x : self.released("outlet_up"))
 
         self.outlet_down_button = CustomButton(self, image = self.down_image)
         self.outlet_down_button.place(x = self.master.screen_width * 2 // 9, y = self.master.screen_height * 2 // 3, anchor = "center")
-        self.outlet_down_button.bind("<ButtonPress-1>", lambda x : self.pressed(3))
-        self.outlet_down_button.bind("<ButtonRelease-1>", lambda x : self.released(3))
+        self.outlet_down_button.bind("<ButtonPress-1>", lambda x : self.pressed("outlet_down"))
+        self.outlet_down_button.bind("<ButtonRelease-1>", lambda x : self.released("outlet_down"))
         
         self.outlet_label = CustomLabel(self, text = "Left")
         self.outlet_label.place(x = self.master.screen_width * 2 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
@@ -195,9 +304,8 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        while self.is_pressed:
-            self.master.move_tube(self.button_map[id][0], self.button_map[id][1], self.button_map[id][2])
-            sleep(0.2)
+        while self.is_pressed and not self.master.ACTUATION[id]["clicked"]:
+            self.master.move_tube(id)
 
     def pressed(self, id):
         self.is_pressed = True
@@ -206,7 +314,6 @@ class Adjust(CustomFrame):
 
     def released(self, id):
         self.is_pressed = False
-        print("released")
         
     def next_pressed(self):
         if self.master.mode == 2:
@@ -261,7 +368,6 @@ class Temp(CustomFrame):
 
     def released(self, id):
         self.is_pressed = False
-        print("released")
 
     def next_pressed(self):
         self.master.target_temp = self.target_temp
@@ -277,8 +383,9 @@ class Process(CustomFrame):
     def start_pressed(self):
         self.start_button.destroy()
         self.master.update()
-
         start_time = perf_counter()
+
+        self.master.run_pump()
 
         if self.master.mode == 2:
             clean_duration = 10
@@ -289,7 +396,6 @@ class Process(CustomFrame):
             while perf_counter() - start_time < clean_duration:
                 self.timer_label.config(text = f"Time remaining: {clean_duration - int(perf_counter() - start_time)} seconds")
                 self.master.update()
-                self.master.run_pump()
 
             self.timer_label.destroy()
 
@@ -304,16 +410,19 @@ class Process(CustomFrame):
                 self.timer_label.config(text = f"Time elapsed: {int(perf_counter() - start_time)} seconds")
                 self.current_temp_label.config(text = f"Currnet temperature: {self.master.current_temp:.1f}\u00b0C")
                 self.master.update()
-                self.master.run_pump()
             
             self.timer_label.destroy()
             self.current_temp_label.destroy()
 
         self.master.update()
+        
+        while not self.master.ACTUATION["inlet_up"]["clicked"]:
+            self.master.move_tube("inlet_up")
+
+        self.master.stop_pump()
 
         self.end_label = CustomLabel(self, text = "Cycle Completed!")
         self.end_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
-
         self.master.update()
 
         sleep(1)
