@@ -25,10 +25,10 @@ class Application(tk.Tk):
         self.STEP_inlet = 8
         self.STEP_outlet = 18
 
-        self.SWITCH_inlet_top = 37
-        self.SWITCH_inlet_bottom = 37
-        self.SWITCH_outlet_top = 37
-        self.SWITCH_outlet_bottom = 37
+        self.SWITCH_inlet_top = 29
+        self.SWITCH_inlet_bottom = 29
+        self.SWITCH_outlet_top = 29
+        self.SWITCH_outlet_bottom = 29
 
         # communicating with stepper motors and switches
         self.ACTUATION = {
@@ -66,7 +66,7 @@ class Application(tk.Tk):
             }
         }
 
-        self.stepper_delay = 0.0002
+        self.stepper_delay = 0.00005
 
         # communicating with pump motor
         self.MOTOR = 22
@@ -86,10 +86,10 @@ class Application(tk.Tk):
         GPIO.setup(self.STEP_outlet, GPIO.OUT)
 
         # setting up switches
-        GPIO.setup(self.SWITCH_inlet_top, GPIO.IN)
-        GPIO.setup(self.SWITCH_inlet_bottom, GPIO.IN)
-        GPIO.setup(self.SWITCH_outlet_top, GPIO.IN)
-        GPIO.setup(self.SWITCH_outlet_bottom, GPIO.IN)
+        GPIO.setup(self.SWITCH_inlet_top, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+        GPIO.setup(self.SWITCH_inlet_bottom, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+        GPIO.setup(self.SWITCH_outlet_top, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+        GPIO.setup(self.SWITCH_outlet_bottom, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 
         # setting up pump motor
         GPIO.setup(self.MOTOR, GPIO.OUT)
