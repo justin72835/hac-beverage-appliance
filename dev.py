@@ -304,7 +304,7 @@ class Adjust(CustomFrame):
         #     self.master.move_tube(id)
         
         while self.is_pressed:
-            self.master.move_tube(id)
+            self.master.move_tube("inlet_up")
 
     def pressed(self, id):
         self.is_pressed = True
