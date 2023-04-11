@@ -389,7 +389,7 @@ class Process(CustomFrame):
             self.current_temp_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 3 // 5, anchor = "center")
 
             while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
-                self.timer_label.config(text = f"Time Elapsed: {(perf_counter() - start_time):.1f} seconds")
+                self.timer_label.config(text = f"Time Elapsed: {int(perf_counter() - start_time)} seconds")
                 self.current_temp_label.config(text = f"Current Temperature: {self.master.current_temp:.1f}\u00b0C")
                 self.master.update()
             
