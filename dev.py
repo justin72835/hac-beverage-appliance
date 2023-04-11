@@ -276,10 +276,10 @@ class Adjust(CustomFrame):
         self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
     
     def check(self, id):
-        while self.is_pressed and GPIO.input(self.ACTUATION[id]["SWITCH"]):
+        while self.is_pressed and GPIO.input(self.master.ACTUATION[id]["SWITCH"]):
             self.master.move_tube(id, True)
 
-        while not GPIO.input(self.ACTUATION[id]["SWITCH"]):
+        while not GPIO.input(self.master.ACTUATION[id]["SWITCH"]):
             self.master.move_tube(id, False)
 
     def pressed(self, id):
