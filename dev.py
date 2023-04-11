@@ -89,7 +89,7 @@ class Application(tk.Tk):
 
         # setting up pump motor
         GPIO.setup(self.MOTOR, GPIO.OUT)
-        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
+        GPIO.output(self.MOTOR, GPIO.LOW)
 
         # setting up MAX6675
         GPIO.setup(self.CS, GPIO.OUT, initial = GPIO.HIGH)
