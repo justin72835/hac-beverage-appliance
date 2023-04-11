@@ -89,6 +89,7 @@ class Application(tk.Tk):
 
         # setting up pump motor
         GPIO.setup(self.MOTOR, GPIO.OUT)
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
 
         # setting up MAX6675
         GPIO.setup(self.CS, GPIO.OUT, initial = GPIO.HIGH)
@@ -383,7 +384,7 @@ class Process(CustomFrame):
 
             while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
                 self.timer_label.config(text = f"Time elapsed: {int(perf_counter() - start_time)} seconds")
-                self.current_temp_label.config(text = f"Currnet temperature: {self.master.current_temp:.1f}\u00b0C")
+                self.current_temp_label.config(text = f"Current temperature: {self.master.current_temp:.1f}\u00b0C")
                 self.master.update()
             
             self.timer_label.destroy()
