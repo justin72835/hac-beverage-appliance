@@ -329,10 +329,8 @@ class Temp(CustomFrame):
     def check(self, id):
         start_time = perf_counter()
         while self.is_pressed and (self.master.current_temp <= self.target_temp <= 50 and self.master.mode == "heat" or 0 <= self.target_temp <= self.master.current_temp and self.master.mode == "cool"):
-            if self.master.current_temp == self.target_temp and self.master.mode == "heat" and id == -1 or \
-                self.master.current_temp == 0 and self.master.mode == "cool" and id == -1 or \
-                self.master.current_temp == self.target_temp and self.master.mode == "cool" and id == 1 or \
-                self.master.current_temp == 50 and self.master.mode == "heat" and id == 1:
+            if (self.target_temp + id < self.master.current_temp or self.target_temp + id > 50) and self.master.mode == "heat" or \
+                (self.target_temp + id > self.master.current_temp or self.target_temp + id < 0) and self.master.mode == "cool":
                 continue
                 
             self.target_temp += id
@@ -398,7 +396,7 @@ class Process(CustomFrame):
 
         self.master.update()
         
-        self.end_label = CustomLabel(self, text = "Temperature Reached!")
+        self.end_label = CustomLabel(self, text = "Raising Inlet Tube")
         self.end_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
         self.master.update()
 
@@ -407,6 +405,11 @@ class Process(CustomFrame):
 
         while not GPIO.input(self.master.ACTUATION["inlet_up"]["SWITCH"]):
             self.master.move_tube("inlet_up", False)
+
+        self.end_label.config(text = "Flushing Out System")
+        self.master.update()
+
+        sleep(7)
 
         self.master.stop_pump()
 
