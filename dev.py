@@ -25,10 +25,10 @@ class Application(tk.Tk):
         self.STEP_inlet = 8
         self.STEP_outlet = 18
 
-        self.SWITCH_inlet_top = 29
-        self.SWITCH_inlet_bottom = 29
+        self.SWITCH_inlet_top = 31
+        self.SWITCH_inlet_bottom = 11
         self.SWITCH_outlet_top = 29
-        self.SWITCH_outlet_bottom = 29
+        self.SWITCH_outlet_bottom = 13
 
         # communicating with stepper motors and switches
         self.ACTUATION = {
@@ -62,7 +62,7 @@ class Application(tk.Tk):
             }
         }
 
-        self.stepper_delay = 0.001
+        self.stepper_delay = 0.000625
 
         # communicating with pump motor
         self.MOTOR = 22
