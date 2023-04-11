@@ -392,10 +392,10 @@ class Process(CustomFrame):
 
         self.master.update()
         
-        while GPIO.input(self.ACTUATION["inlet_up"]["SWITCH"]):
+        while GPIO.input(self.master.ACTUATION["inlet_up"]["SWITCH"]):
             self.master.move_tube("inlet_up", True)
 
-        while not GPIO.input(self.ACTUATION["inlet_up"]["SWITCH"]):
+        while not GPIO.input(self.master.ACTUATION["inlet_up"]["SWITCH"]):
             self.master.move_tube("inlet_up", False)
 
         self.master.stop_pump()
