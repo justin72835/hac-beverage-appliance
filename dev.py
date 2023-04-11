@@ -328,7 +328,13 @@ class Temp(CustomFrame):
 
     def check(self, id):
         start_time = perf_counter()
-        while self.is_pressed and (self.master.current_temp < self.target_temp <= 50 and self.master.mode == "heat" or 0 <= self.target_temp < self.master.current_temp and self.master.mode == "cool"):
+        while self.is_pressed and (self.master.current_temp <= self.target_temp <= 50 and self.master.mode == "heat" or 0 <= self.target_temp <= self.master.current_temp and self.master.mode == "cool"):
+            if self.master.current_temp == self.target_temp and self.master.mode == "heat" and id == -1 or \
+                self.master.current_temp == 0 and self.master.mode == "cool" and id == -1 or \
+                self.master.current_temp == self.target_temp and self.master.mode == "cool" and id == 1 or \
+                self.master.current_temp == 50 and self.master.mode == "heat" and id == 1:
+                continue
+                
             self.target_temp += id
             self.temp_label.config(text = f"{self.target_temp:.1f}\u00b0C")
 
@@ -383,8 +389,8 @@ class Process(CustomFrame):
             self.current_temp_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 3 // 5, anchor = "center")
 
             while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
-                self.timer_label.config(text = f"Time elapsed: {int(perf_counter() - start_time)} seconds")
-                self.current_temp_label.config(text = f"Current temperature: {self.master.current_temp:.1f}\u00b0C")
+                self.timer_label.config(text = f"Time Elapsed: {(perf_counter() - start_time):.1f} seconds")
+                self.current_temp_label.config(text = f"Current Temperature: {self.master.current_temp:.1f}\u00b0C")
                 self.master.update()
             
             self.timer_label.destroy()
@@ -392,6 +398,10 @@ class Process(CustomFrame):
 
         self.master.update()
         
+        self.end_label = CustomLabel(self, text = "Temperature Reached!")
+        self.end_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
+        self.master.update()
+
         while GPIO.input(self.master.ACTUATION["inlet_up"]["SWITCH"]):
             self.master.move_tube("inlet_up", True)
 
@@ -400,11 +410,10 @@ class Process(CustomFrame):
 
         self.master.stop_pump()
 
-        self.end_label = CustomLabel(self, text = "Cycle Completed!")
-        self.end_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
+        self.end_label.config(text = "Cycle Completed!")
         self.master.update()
 
-        sleep(1)
+        sleep(2)
         
         self.master.reset()
 
