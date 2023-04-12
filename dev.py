@@ -413,6 +413,15 @@ class Process(CustomFrame):
 
         self.master.stop_pump()
 
+        self.end_label.config(text = "Raising Outlet Tube")
+        self.master.update()
+
+        while GPIO.input(self.master.ACTUATION["outlet_up"]["SWITCH"]):
+            self.master.move_tube("outlet_up", True)
+
+        while not GPIO.input(self.master.ACTUATION["outlet_up"]["SWITCH"]):
+            self.master.move_tube("outlet_up", False)
+
         self.end_label.config(text = "Cycle Completed!")
         self.master.update()
 
