@@ -329,8 +329,11 @@ class Temp(CustomFrame):
     def check(self, id):
         start_time = perf_counter()
         while self.is_pressed and (self.master.current_temp <= self.target_temp <= 50 and self.master.mode == "heat" or 0 <= self.target_temp <= self.master.current_temp and self.master.mode == "cool"):
-            if (self.target_temp + id < self.master.current_temp or self.target_temp + id > 50) and self.master.mode == "heat" or \
-                (self.target_temp + id > self.master.current_temp or self.target_temp + id < 0) and self.master.mode == "cool":
+            # if (self.target_temp + id < self.master.current_temp or self.target_temp + id > 50) and self.master.mode == "heat" or \
+            #     (self.target_temp + id > self.master.current_temp or self.target_temp + id < 0) and self.master.mode == "cool":
+            #     continue
+
+            if self.target_temp + id < 0 or self.target_temp + id > 50:
                 continue
                 
             self.target_temp += id
