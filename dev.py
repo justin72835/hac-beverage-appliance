@@ -404,11 +404,6 @@ class Process(CustomFrame):
 
                 while perf_counter() - start_time < clean_duration:
                     self.timer_label.config(text = f"Time remaining: {clean_duration - int(perf_counter() - start_time)} seconds")
-                    
-                    # write to csv, add raw temp data
-                    if (self.master.temp_data is not float('-inf')):
-                        writer.writerow([perf_counter(), self.master.temp_data])
-
                     self.master.update()
 
                 self.timer_label.destroy()
@@ -425,7 +420,8 @@ class Process(CustomFrame):
                     self.current_temp_label.config(text = f"Current Temperature: {self.master.current_temp:.1f}\u00b0C")
                     
                     # write to csv, add raw temp data
-                    writer.writerow([perf_counter(), self.master.temp_data])
+                    if (self.master.temp_data is not float('-inf')):
+                        writer.writerow([perf_counter(), self.master.temp_data])
                     
                     self.master.update()
                 
