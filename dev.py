@@ -1,11 +1,15 @@
-from threading import Thread, Lock
+from threading import Thread
 from time import sleep, perf_counter
-import random
 import RPi.GPIO as GPIO
 import tkinter as tk
 import csv
 from datetime import datetime
 import os
+import subprocess
+
+# update rpi4 internal clock to match standard time
+cmd = 'sudo date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z"'
+subprocess.run(cmd, shell=True, check=True)
 
 class Application(tk.Tk):
     def __init__(self):
