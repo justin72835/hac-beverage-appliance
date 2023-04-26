@@ -66,6 +66,7 @@ class Application(tk.Tk):
         }
 
         self.is_operating = False
+        self.visual_timer_started = False
 
         self.stepper_delay = 0.000625
 
@@ -172,6 +173,7 @@ class Application(tk.Tk):
         self.mode = ""
         self.target_temp = float('-inf')
         self.temp_data = float('-inf')
+        self.zero_timer = float('-inf')
 
         if self.frames:
             for frame in self.frames:
@@ -421,7 +423,10 @@ class Process(CustomFrame):
                     
                     # write to csv, add raw temp data
                     if (self.master.temp_data is not float('-inf')):
-                        writer.writerow([perf_counter(), self.master.temp_data])
+                        if (not self.master.visual_timer_started):
+                            self.master.zero_timer = perf_counter()
+                            self.master.visual_timer_started = True
+                        writer.writerow([perf_counter() - self.master.zero_timer, self.master.temp_data])
                     
                     self.master.update()
                 
@@ -429,6 +434,7 @@ class Process(CustomFrame):
                 self.current_temp_label.destroy()
 
         self.master.is_operating = False
+        self.master.visual_timer_started = False
         self.master.update()
 
         # clear global var for raw temp data
