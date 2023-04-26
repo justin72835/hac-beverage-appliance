@@ -3,6 +3,9 @@ from time import sleep, perf_counter
 import random
 import RPi.GPIO as GPIO
 import tkinter as tk
+import csv
+from datetime import datetime
+import os
 
 class Application(tk.Tk):
     def __init__(self):
@@ -62,6 +65,8 @@ class Application(tk.Tk):
             }
         }
 
+        self.is_operating = False
+
         self.stepper_delay = 0.000625
 
         # communicating with pump motor
@@ -117,28 +122,32 @@ class Application(tk.Tk):
             sleep(0.001)
             GPIO.output(self.SCK, GPIO.LOW)
 
-        val = 0
-            
-        for i in range(11, -1, -1):
+            val = 0
+                
+            for i in range(11, -1, -1):
+                GPIO.output(self.SCK, GPIO.HIGH)
+                val += (GPIO.input(self.SO) * (2 ** i))
+                GPIO.output(self.SCK, GPIO.LOW)
+
             GPIO.output(self.SCK, GPIO.HIGH)
-            val += (GPIO.input(self.SO) * (2 ** i))
+            error_tc = GPIO.input(self.SO)
             GPIO.output(self.SCK, GPIO.LOW)
 
-        GPIO.output(self.SCK, GPIO.HIGH)
-        error_tc = GPIO.input(self.SO)
-        GPIO.output(self.SCK, GPIO.LOW)
+            for i in range(2):
+                GPIO.output(self.SCK, GPIO.HIGH)
+                sleep(0.001)
+                GPIO.output(self.SCK, GPIO.LOW)
 
-        for i in range(2):
-            GPIO.output(self.SCK, GPIO.HIGH)
-            sleep(0.001)
-            GPIO.output(self.SCK, GPIO.LOW)
+            GPIO.output(self.CS, GPIO.HIGH)
 
-        GPIO.output(self.CS, GPIO.HIGH)
+            if error_tc != 0:
+                return -self.CS
 
-        if error_tc != 0:
-            return -self.CS
+            temp = val * 0.23
+            temps.append(temp)
 
-        temps.append(val * 0.23)
+            if (self.is_operating):
+                self.temp_data = temp
 
         return sum(temps)/len(temps)
 
@@ -162,6 +171,7 @@ class Application(tk.Tk):
     def reset(self):
         self.mode = ""
         self.target_temp = float('-inf')
+        self.temp_data = float('-inf')
 
         if self.frames:
             for frame in self.frames:
@@ -368,37 +378,63 @@ class Process(CustomFrame):
         self.start_button.destroy()
         self.master.update()
         start_time = perf_counter()
-
-        self.master.run_pump()
-
-        if self.master.mode == "clean":
-            clean_duration = 10
         
-            self.timer_label = CustomLabel(self)
-            self.timer_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
+        # create new directory to store csv files if 'temp_data' does not already exist
+        dir_path = os.path.join(os.getcwd(), 'temp_data')
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
-            while perf_counter() - start_time < clean_duration:
-                self.timer_label.config(text = f"Time remaining: {clean_duration - int(perf_counter() - start_time)} seconds")
-                self.master.update()
+        # create csv for current cycle temp data
+        header = ['Time', 'Temperature (C)']
+        now = datetime.now()
+        dt_string = now.strftime("%d-%m-%Y_%H.%M.%S")
+        file_path = os.path.join(dir_path, dt_string + '_data.csv')
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(header)
 
-            self.timer_label.destroy()
+            self.master.run_pump()
+            self.master.is_operating = True
 
-        else:
-            self.timer_label = CustomLabel(self)
-            self.timer_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 2 // 5, anchor = "center")
-
-            self.current_temp_label = CustomLabel(self)
-            self.current_temp_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 3 // 5, anchor = "center")
-
-            while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
-                self.timer_label.config(text = f"Time Elapsed: {int(perf_counter() - start_time)} seconds")
-                self.current_temp_label.config(text = f"Current Temperature: {self.master.current_temp:.1f}\u00b0C")
-                self.master.update()
+            if self.master.mode == "clean":
+                clean_duration = 10
             
-            self.timer_label.destroy()
-            self.current_temp_label.destroy()
+                self.timer_label = CustomLabel(self)
+                self.timer_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
 
+                while perf_counter() - start_time < clean_duration:
+                    self.timer_label.config(text = f"Time remaining: {clean_duration - int(perf_counter() - start_time)} seconds")
+                    
+                    # write to csv, add raw temp data
+                    writer.writerow([perf_counter, self.master.temp_data])
+
+                    self.master.update()
+
+                self.timer_label.destroy()
+
+            else:
+                self.timer_label = CustomLabel(self)
+                self.timer_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 2 // 5, anchor = "center")
+
+                self.current_temp_label = CustomLabel(self)
+                self.current_temp_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 3 // 5, anchor = "center")
+
+                while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
+                    self.timer_label.config(text = f"Time Elapsed: {int(perf_counter() - start_time)} seconds")
+                    self.current_temp_label.config(text = f"Current Temperature: {self.master.current_temp:.1f}\u00b0C")
+                    
+                    # write to csv, add raw temp data
+                    writer.writerow([perf_counter, self.master.temp_data])
+                    
+                    self.master.update()
+                
+                self.timer_label.destroy()
+                self.current_temp_label.destroy()
+
+        self.master.is_operating = False
         self.master.update()
+
+        # clear global var for raw temp data
         
         self.end_label = CustomLabel(self, text = "Raising Inlet Tube")
         self.end_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
