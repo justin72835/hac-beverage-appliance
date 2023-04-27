@@ -19,9 +19,11 @@ git checkout main
 git pull
 ```
 
-Lastly, you can run the python file using the following command.
+Lastly, when you want to run the application, you must first navigate to the same directory as the script within the terminal using `cd`. In this case, make usre you are in the 'utme_warmer' directory. Then you can run the python file using the following command.
 
 `sudo python main.py`
+
+The `sudo` command allows authorized users to execute commands with elevated privileges, typically as a system administrator or a root user. This can be useful for performing administrative tasks, such as installing software, modifying system settings, or managing system resources.
 
 ## CSV Functionality
 
