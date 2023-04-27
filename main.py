@@ -152,7 +152,7 @@ class Application(tk.Tk):
             temp = val * 0.23
             temps.append(temp)
 
-            if (self.is_operating):
+            if self.is_operating:
                 self.temp_data = temp
 
         return sum(temps)/len(temps)
