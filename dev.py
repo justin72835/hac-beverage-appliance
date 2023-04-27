@@ -7,9 +7,9 @@ from datetime import datetime
 import os
 import subprocess
 
-# update rpi4 internal clock to match standard time
+# update RPi4 internal clock to match standard time
 cmd = 'sudo date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z"'
-subprocess.run(cmd, shell=True, check=True)
+subprocess.run(cmd, check=True)
 
 class Application(tk.Tk):
     def __init__(self):
@@ -412,6 +412,8 @@ class Process(CustomFrame):
                     self.timer_label.config(text = f"Time remaining: {clean_duration - int(perf_counter() - start_time)} seconds")
                     self.master.update()
 
+                    sleep(0.05)
+
                 self.timer_label.destroy()
 
             else:
@@ -433,6 +435,8 @@ class Process(CustomFrame):
                         writer.writerow([perf_counter() - self.master.zero_timer, self.master.temp_data])
                     
                     self.master.update()
+
+                    sleep(0.05)
                 
                 self.timer_label.destroy()
                 self.current_temp_label.destroy()
