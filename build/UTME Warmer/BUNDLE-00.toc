@@ -1,3 +1,0 @@
-([('UTME Warmer',
-   '/Users/justinoca/Documents/UTME-Warmer/utme-warmer/dist/UTME Warmer',
-   'EXECUTABLE')],)
