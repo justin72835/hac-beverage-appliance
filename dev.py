@@ -8,8 +8,8 @@ import os
 import subprocess
 
 # update RPi4 internal clock to match standard time
-cmd = 'sudo date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z"'
-print(cmd)
+cmd = '''sudo date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z"'''
+print(cmd)''
 subprocess.run(cmd, shell=True, check=True)
 
 class Application(tk.Tk):
