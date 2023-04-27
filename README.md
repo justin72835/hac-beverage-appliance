@@ -27,4 +27,4 @@ The `sudo` command allows authorized users to execute commands with elevated pri
 
 ## CSV Functionality
 
-When using the application, a new CSV file should be generated after each run. The CSV files are stored in a folder called 'temp_data' and are titled using the current date and time.
+When using the application, a new CSV file should be generated after each heating/cooling run. The CSV files are stored in a folder called 'temp_data' and are titled using the current date and time.
