@@ -1,451 +1,485 @@
-from threading import Thread, Lock
-from time import sleep
-import random
+from threading import Thread
+from time import sleep, perf_counter
 import RPi.GPIO as GPIO
 import tkinter as tk
-from PIL import Image, ImageTk
+import csv
+from datetime import datetime
+import os
+import subprocess
 
-######################################
-## HARDWARE ## HARDWARE ## HARDWARE ##
-###################################### 
+# update RPi4 internal clock to match standard time
+cmd = '''sudo date -s "$(wget -qSO- --max-redirect=0 google.com 2>&1 | grep Date: | cut -d' ' -f5-8)Z"'''
+print(cmd)
+subprocess.run(cmd, shell=True, check=True)
 
-###################
-###### PINS ####### 
-################### 
+class Application(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("UTME Warmer")
+        # self.screen_width = self.winfo_screenwidth()
+        # self.screen_height = self.winfo_screenheight()
+        self.screen_width = 800
+        self.screen_height = 480
+        self.geometry(f"{self.screen_width}x{self.screen_height}")
+        self.frames = {}
 
-# communicating with stepper motors
-DIR_inlet = 10
-DIR_outlet = 16
-STEP_inlet = 8
-STEP_outlet = 18
+        self.setup_hardware()
+        self.reset()
 
-# communicating with pump motor
-MOTOR = 22
+    def setup_hardware(self):
+        self.DIR_inlet = 10
+        self.DIR_outlet = 16
 
-# communicating with MAX6675
-CS = 36
-SCK = 40
-SO = 35
+        self.STEP_inlet = 8
+        self.STEP_outlet = 18
 
-###################
-##### SETUP ####### 
-###################
+        self.SWITCH_inlet_top = 31
+        self.SWITCH_inlet_bottom = 11
+        self.SWITCH_outlet_top = 29
+        self.SWITCH_outlet_bottom = 13
 
-GPIO.cleanup()
+        # communicating with stepper motors and switches
+        self.ACTUATION = {
+            "inlet_up" : {
+                "DIR" : self.DIR_inlet,
+                "STEP" : self.STEP_inlet,
+                "forward" : 0,
+                "reverse" : 1,
+                "SWITCH" : self.SWITCH_inlet_top
+            },
+            "inlet_down" : {
+                "DIR" : self.DIR_inlet,
+                "STEP" : self.STEP_inlet,
+                "forward" : 1,
+                "reverse" : 0,
+                "SWITCH" : self.SWITCH_inlet_bottom
+            },
+            "outlet_up" : {
+                "DIR" : self.DIR_outlet,
+                "STEP" : self.STEP_outlet,
+                "forward" : 0,
+                "reverse" : 1,
+                "SWITCH" : self.SWITCH_outlet_top
+            },
+            "outlet_down" : {
+                "DIR" : self.DIR_outlet,
+                "STEP" : self.STEP_outlet,
+                "forward" : 1,
+                "reverse" : 0,
+                "SWITCH" : self.SWITCH_outlet_bottom
+            }
+        }
 
-GPIO.setmode(GPIO.BOARD)
+        self.is_operating = False
+        self.visual_timer_started = False
 
-# setting up stepper motors
-GPIO.setup(DIR_inlet, GPIO.OUT)
-GPIO.setup(DIR_outlet, GPIO.OUT)
-GPIO.setup(STEP_inlet, GPIO.OUT)
-GPIO.setup(STEP_outlet, GPIO.OUT)
+        self.stepper_delay = 0.000625
 
-# setting up pump motor
-GPIO.setup(MOTOR, GPIO.OUT)
+        # communicating with pump motor
+        self.MOTOR = 22
 
-# purely here for debugging, makes motor turn off at runtime
-GPIO.output(MOTOR, GPIO.LOW)
+        # communicating with MAX6675
+        self.CS = 36
+        self.SCK = 40
+        self.SO = 35
 
-# setting up MAX6675
-GPIO.setup(CS, GPIO.OUT, initial = GPIO.HIGH)
-GPIO.setup(SCK, GPIO.OUT, initial = GPIO.LOW)
-GPIO.setup(SO, GPIO.IN)
+        GPIO.cleanup()
+        GPIO.setmode(GPIO.BOARD)
 
-###################
-#### FUNCTIONS #### 
-###################
+        # setting up stepper motors
+        GPIO.setup(self.DIR_inlet, GPIO.OUT)
+        GPIO.setup(self.DIR_outlet, GPIO.OUT)
+        GPIO.setup(self.STEP_inlet, GPIO.OUT)
+        GPIO.setup(self.STEP_outlet, GPIO.OUT)
 
-# upward
-def move_up(DIR, STEP):
-    GPIO.output(DIR, 0)
-    GPIO.output(STEP, GPIO.HIGH)
-    sleep(.0004)
-    GPIO.output(STEP, GPIO.LOW)
-    sleep(.0004)
+        # setting up switches
+        GPIO.setup(self.SWITCH_inlet_top, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+        GPIO.setup(self.SWITCH_inlet_bottom, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+        GPIO.setup(self.SWITCH_outlet_top, GPIO.IN, pull_up_down = GPIO.PUD_UP)
+        GPIO.setup(self.SWITCH_outlet_bottom, GPIO.IN, pull_up_down = GPIO.PUD_UP)
 
-# downward
-def move_down(DIR, STEP):
-    GPIO.output(DIR, 1)
-    GPIO.output(STEP, GPIO.HIGH)
-    sleep(.0004)
-    GPIO.output(STEP, GPIO.LOW)
-    sleep(.0004)
+        # setting up pump motor
+        GPIO.setup(self.MOTOR, GPIO.OUT)
+        GPIO.output(self.MOTOR, GPIO.LOW)
 
-# run normal cycle
-def start_cycle(desired_temperature):
-    global heat_cool_global
-    global current_temperature_global
-    print("<start_cycle function> Cycle has been started.")
-    GPIO.output(MOTOR, GPIO.HIGH)
-    while current_temperature_global < desired_temperature and heat_cool_global or current_temperature_global > desired_temperature and not heat_cool_global:
-        print("<start_cycle function> Inside while loop. Temperature at", current_temperature_global, "C")
-        sleep(1)
-    print("<start_cycle function> Cycle has ended. Desired temperature has been reached.")
-    GPIO.output(MOTOR, GPIO.LOW)
+        # setting up MAX6675
+        GPIO.setup(self.CS, GPIO.OUT, initial = GPIO.HIGH)
+        GPIO.setup(self.SCK, GPIO.OUT, initial = GPIO.LOW)
+        GPIO.setup(self.SO, GPIO.IN)
 
-# run cleaning cycle
-def clean_cycle(desired_temperature):
-    GPIO.output(MOTOR, GPIO.HIGH)
-    sleep(10)
-    GPIO.output(MOTOR, GPIO.LOW)
+        # current temperature
+        self.current_temp = float('-inf')
 
-# get current temperature over the course of a second
-def get_current_temperature():
-    temperatures = []
+        # update temperature thread
+        self.update_temp_thread = Thread(target = self.update_temp, args = ())
+        self.update_temp_thread.start()
 
-    for n in range(5):
-        GPIO.output(CS, GPIO.LOW)
-        sleep(0.002)
-        GPIO.output(CS, GPIO.HIGH)
-        sleep(0.22)
+    def get_current_temp(self):
+        temps = []
 
-        GPIO.output(CS, GPIO.LOW)
-        GPIO.output(SCK, GPIO.HIGH)
-        sleep(0.001)
-        GPIO.output(SCK, GPIO.LOW)
+        for n in range(5):
+            GPIO.output(self.CS, GPIO.LOW)
+            sleep(0.002)
+            GPIO.output(self.CS, GPIO.HIGH)
+            sleep(0.22)
 
-        value = 0
-        
-        for i in range(11, -1, -1):
-            GPIO.output(SCK, GPIO.HIGH)
-            value += (GPIO.input(SO) * (2 ** i))
-            GPIO.output(SCK, GPIO.LOW)
-
-        GPIO.output(SCK, GPIO.HIGH)
-        error_tc = GPIO.input(SO)
-        GPIO.output(SCK, GPIO.LOW)
-
-        for i in range(2):
-            GPIO.output(SCK, GPIO.HIGH)
+            GPIO.output(self.CS, GPIO.LOW)
+            GPIO.output(self.SCK, GPIO.HIGH)
             sleep(0.001)
-            GPIO.output(SCK, GPIO.LOW)
+            GPIO.output(self.SCK, GPIO.LOW)
 
-        GPIO.output(CS, GPIO.HIGH)
+            val = 0
+                
+            for i in range(11, -1, -1):
+                GPIO.output(self.SCK, GPIO.HIGH)
+                val += (GPIO.input(self.SO) * (2 ** i))
+                GPIO.output(self.SCK, GPIO.LOW)
 
-        if error_tc != 0:
-            return -CS
+            GPIO.output(self.SCK, GPIO.HIGH)
+            error_tc = GPIO.input(self.SO)
+            GPIO.output(self.SCK, GPIO.LOW)
 
-        temperatures.append(value * 0.23)
+            for i in range(2):
+                GPIO.output(self.SCK, GPIO.HIGH)
+                sleep(0.001)
+                GPIO.output(self.SCK, GPIO.LOW)
 
-    return sum(temperatures)/len(temperatures)
+            GPIO.output(self.CS, GPIO.HIGH)
 
-######################################
-## SOFTWARE ## SOFTWARE ## SOFTWARE ##
-######################################
+            if error_tc != 0:
+                return -self.CS
 
-###################
-### GLOBAL VARS ### 
-###################  
+            temp = val * 0.23
+            temps.append(temp)
 
-power_global = True
-heat_cool_global = True
+            if (self.is_operating):
+                self.temp_data = temp
 
-inlet_up_global = False
-inlet_down_global = False
-outlet_up_global = False
-outlet_down_global = False
+        return sum(temps)/len(temps)
 
-current_temperature_global = float('inf')
+    def update_temp(self):
+        while True:
+            self.current_temp = self.get_current_temp()
 
-###################
-##### SETUP ####### 
-###################
+    def move_tube(self, id, open):
+        GPIO.output(self.ACTUATION[id]["DIR"], self.ACTUATION[id]["forward"] if open else self.ACTUATION[id]["reverse"])
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.HIGH)
+        sleep(self.stepper_delay)
+        GPIO.output(self.ACTUATION[id]["STEP"], GPIO.LOW)
+        sleep(self.stepper_delay)
 
-# create the root window
-root = tk.Tk()
+    def run_pump(self):
+        GPIO.output(self.MOTOR, GPIO.HIGH)
 
-# root window geometry
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-root.geometry(f"{screen_width}x{screen_height}")
-root.configure(bg='black')
+    def stop_pump(self):
+        GPIO.output(self.MOTOR, GPIO.LOW)
 
-# threads and functions for tube actuation
-def inlet_up_check():
-    while inlet_up_global:
-        move_up(DIR_inlet, STEP_inlet)
+    def reset(self):
+        self.mode = ""
+        self.target_temp = float('-inf')
+        self.temp_data = float('-inf')
+        self.zero_timer = float('-inf')
 
-def inlet_down_check():
-    while inlet_down_global:
-        move_down(DIR_inlet, STEP_inlet)
-
-def outlet_up_check():
-    while outlet_up_global:
-        move_up(DIR_outlet, STEP_outlet)
-
-def outlet_down_check():
-    while outlet_down_global:
-        move_down(DIR_outlet, STEP_outlet)
-
-###################
-# LOADING ASSETS ##
-###################
-
-inlet_up = Image.open('assets/New Assets/inlet_up.png')
-inlet_up = inlet_up.resize((100, 80), Image.ANTIALIAS)
-inlet_up = ImageTk.PhotoImage(inlet_up)
-
-inlet_down = Image.open('assets/New Assets/inlet_down.png')
-inlet_down = inlet_down.resize((100, 115), Image.ANTIALIAS)
-inlet_down = ImageTk.PhotoImage(inlet_down)
-
-inlet_up_shade = Image.open('assets/New Assets/inlet_up_shade.png')
-inlet_up_shade = inlet_up_shade.resize((100, 80), Image.ANTIALIAS)
-inlet_up_shade = ImageTk.PhotoImage(inlet_up_shade)
-
-inlet_down_shade = Image.open('assets/New Assets/inlet_down_shade.png')
-inlet_down_shade = inlet_down_shade.resize((100, 115), Image.ANTIALIAS)
-inlet_down_shade = ImageTk.PhotoImage(inlet_down_shade)
-
-outlet_up = Image.open('assets/New Assets/outlet_up.png')
-outlet_up = outlet_up.resize((100, 80), Image.ANTIALIAS)
-outlet_up = ImageTk.PhotoImage(outlet_up)
-
-outlet_down = Image.open('assets/New Assets/outlet_down.png')
-outlet_down = outlet_down.resize((100, 115), Image.ANTIALIAS)
-outlet_down = ImageTk.PhotoImage(outlet_down)
-
-outlet_up_shade = Image.open('assets/New Assets/outlet_up_shade.png')
-outlet_up_shade = outlet_up_shade.resize((100, 80), Image.ANTIALIAS)
-outlet_up_shade = ImageTk.PhotoImage(outlet_up_shade)
-
-outlet_down_shade = Image.open('assets/New Assets/outlet_down_shade.png')
-outlet_down_shade = outlet_down_shade.resize((100, 115), Image.ANTIALIAS)
-outlet_down_shade = ImageTk.PhotoImage(outlet_down_shade)
-
-start = Image.open('assets/New Assets/start.png')
-start = start.resize((140, 75), Image.ANTIALIAS)
-start = ImageTk.PhotoImage(start)
-
-start_shade = Image.open('assets/New Assets/start_shade.png')
-start_shade = start_shade.resize((140, 75), Image.ANTIALIAS)
-start_shade = ImageTk.PhotoImage(start_shade)
-
-clean = Image.open('assets/New Assets/clean.png')
-clean = clean.resize((140, 80), Image.ANTIALIAS)
-clean = ImageTk.PhotoImage(clean)
-
-clean_shade = Image.open('assets/New Assets/clean_shade.png')
-clean_shade = clean_shade.resize((140, 80), Image.ANTIALIAS)
-clean_shade = ImageTk.PhotoImage(clean_shade)
-
-power_on = Image.open('assets/power_on.png')
-power_on = power_on.resize((100, 80), Image.ANTIALIAS)
-power_on = ImageTk.PhotoImage(power_on)
-
-power_off = Image.open('assets/power_off.png')
-power_off = power_off.resize((100, 80), Image.ANTIALIAS)
-power_off = ImageTk.PhotoImage(power_off)
-
-cool = Image.open('assets/cool.png')
-cool = cool.resize((100, 80), Image.ANTIALIAS)
-cool = ImageTk.PhotoImage(cool)
-
-heat = Image.open('assets/heat.png')
-heat = heat.resize((100, 80), Image.ANTIALIAS)
-heat = ImageTk.PhotoImage(heat)
-
-info = Image.open('assets/New Assets/instruction.png')
-info = info.resize((50, 50), Image.ANTIALIAS)
-info = ImageTk.PhotoImage(info)
-
-###################
-#### FUNCTIONS #### 
-###################
-
-# click for more info
-class Tooltip:
-    def __init__(self, widget, text):
-        self.widget = widget
-        self.text = text
-        self.tw = None
+        if self.frames:
+            for frame in self.frames:
+                self.frames[frame].destroy()
         
-    def show_tooltip(self):
-        if not self.tw:
-            x, y, cx, cy = self.widget.bbox("insert")
-            x += self.widget.winfo_rootx() + 25
-            y += self.widget.winfo_rooty() + 20
-            self.tw = tk.Toplevel(self.widget)
-            self.tw.geometry("+%d+%d" % (x, y))
-            self.tw.attributes("-topmost", True)
-            label = tk.Label(self.tw, text=self.text, justify="left", background="#ffffff", relief="solid", borderwidth=1, font=("tahoma", "8", "normal"))
-            label.pack(ipadx=1)
+        self.frames["initial"] = Initial(self)
+        self.frames["mode"] = Mode(self)
+        self.frames["adjust"] = Adjust(self)
+        self.frames["temp"] = Temp(self)
+        self.frames["process"] = Process(self)
+        self.current_frame = None
+
+        self.switch_frame("initial")
+
+    def switch_frame(self, frame):
+        if self.current_frame:
+            self.current_frame.pack_forget()
+
+        self.current_frame = self.frames[frame]
+        self.current_frame.pack(fill='both', expand=True)
+
+class CustomButton(tk.Button):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.configure(borderwidth = 0, highlightthickness = 0, background = "#eeeeee")
+
+class CustomLabel(tk.Label):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.configure(font = ("Calibri", 25, "bold"), borderwidth = 0, highlightthickness = 0, background = "#eeeeee")
+
+class CustomFrame(tk.Frame):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.configure(background = "#eeeeee")
+
+class Initial(CustomFrame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.begin_image = tk.PhotoImage(file = "resources/begin.png")
+        self.begin_button = CustomButton(self, image = self.begin_image, command = self.begin_pressed)
+        self.begin_button.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
+
+    def begin_pressed(self):
+        self.master.switch_frame("mode")
+    
+class Mode(CustomFrame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.heat_image = tk.PhotoImage(file = "resources/heat.png")
+        self.heat_button = CustomButton(self, image = self.heat_image, command = self.heat_pressed)
+        self.heat_button.place(x = self.master.screen_width * 1 // 3, y = self.master.screen_height * 1 // 3, anchor = "center")
+
+        self.cool_image = tk.PhotoImage(file = "resources/cool.png")
+        self.cool_button = CustomButton(self, image = self.cool_image, command = self.cool_pressed)
+        self.cool_button.place(x = self.master.screen_width * 2 // 3, y = self.master.screen_height * 1 // 3, anchor = "center")
+
+        self.clean_image = tk.PhotoImage(file = "resources/clean.png")
+        self.clean_button = CustomButton(self, image = self.clean_image, command = self.clean_pressed)
+        self.clean_button.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 2 // 3, anchor = "center")
+    
+    def heat_pressed(self):
+        self.master.mode = "heat"
+        self.master.switch_frame("adjust")
+
+    def cool_pressed(self):
+        self.master.mode = "cool"
+        self.master.switch_frame("adjust")
+
+    def clean_pressed(self):
+        self.master.mode = "clean"
+        self.master.switch_frame("adjust")
+
+class Adjust(CustomFrame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.is_pressed = False
+
+        self.up_image = tk.PhotoImage(file = "resources/up.png")
+        self.up_image = self.up_image
+
+        self.down_image = tk.PhotoImage(file = "resources/down.png")
+        self.down_image = self.down_image
+
+        self.inlet_up_button = CustomButton(self, image = self.up_image)
+        self.inlet_up_button.place(x = self.master.screen_width * 4 // 9, y = self.master.screen_height * 1 // 3, anchor = "center")
+        self.inlet_up_button.bind("<ButtonPress-1>", lambda x : self.pressed("inlet_up"))
+        self.inlet_up_button.bind("<ButtonRelease-1>", lambda x : self.released("inlet_up"))
+
+        self.inlet_down_button = CustomButton(self, image = self.down_image)
+        self.inlet_down_button.place(x = self.master.screen_width * 4 // 9, y = self.master.screen_height * 2 // 3, anchor = "center")
+        self.inlet_down_button.bind("<ButtonPress-1>", lambda x : self.pressed("inlet_down"))
+        self.inlet_down_button.bind("<ButtonRelease-1>", lambda x : self.released("inlet_down"))
+
+        self.inlet_label = CustomLabel(self, text = "Right")
+        self.inlet_label.place(x = self.master.screen_width * 4 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
+
+        self.outlet_up_button = CustomButton(self, image = self.up_image)
+        self.outlet_up_button.place(x = self.master.screen_width * 2 // 9, y = self.master.screen_height * 1 // 3, anchor = "center")
+        self.outlet_up_button.bind("<ButtonPress-1>", lambda x : self.pressed("outlet_up"))
+        self.outlet_up_button.bind("<ButtonRelease-1>", lambda x : self.released("outlet_up"))
+
+        self.outlet_down_button = CustomButton(self, image = self.down_image)
+        self.outlet_down_button.place(x = self.master.screen_width * 2 // 9, y = self.master.screen_height * 2 // 3, anchor = "center")
+        self.outlet_down_button.bind("<ButtonPress-1>", lambda x : self.pressed("outlet_down"))
+        self.outlet_down_button.bind("<ButtonRelease-1>", lambda x : self.released("outlet_down"))
         
-    def hide_tooltip(self):
-        if self.tw:
-            self.tw.destroy()
-            self.tw = None
+        self.outlet_label = CustomLabel(self, text = "Left")
+        self.outlet_label.place(x = self.master.screen_width * 2 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
 
-# power button pressed
-def power_pressed():
-    global power_global
-    if power_global:
-        power_button.config(image=power_off, borderwidth=0, highlightthickness=0)
-        power_global = False
-    else:
-        power_button.config(image=power_on, borderwidth=0, highlightthickness=0)
-        power_global = True
+        self.next_image = tk.PhotoImage(file = "resources/next.png")
+        self.next_button = CustomButton(self, image = self.next_image, command = self.next_pressed)
+        self.next_button.place(x = self.master.screen_width * 7 // 9, y = self.master.screen_height * 1 // 2, anchor = "center")
+    
+    def check(self, id):
+        while self.is_pressed and GPIO.input(self.master.ACTUATION[id]["SWITCH"]):
+            self.master.move_tube(id, True)
 
-# heat/cool button pressed
-def heat_cool_pressed():
-    global heat_cool_global
-    if heat_cool_global:
-        heat_cool_button.config(image=cool, borderwidth=0, highlightthickness=0)
-        heat_cool_global = False
-    else:
-        heat_cool_button.config(image=heat, borderwidth=0, highlightthickness=0)
-        heat_cool_global = True
+        while not GPIO.input(self.master.ACTUATION[id]["SWITCH"]):
+            self.master.move_tube(id, False)
 
-# inlet up button pressed and released
-def inlet_up_pressed(event):
-    global inlet_up_global
-    inlet_up_thread = Thread(target = inlet_up_check, args = ())
-    inlet_up_button.config(image=inlet_up_shade, borderwidth=0, highlightthickness=0)
-    inlet_up_global = True
-    inlet_up_thread.start()
-def inlet_up_released(event):
-    global inlet_up_global
-    inlet_up_button.config(image=inlet_up, borderwidth=0, highlightthickness=0)
-    inlet_up_global = False
+    def pressed(self, id):
+        self.is_pressed = True
+        check_thread = Thread(target = self.check, args = [id])
+        check_thread.start()
 
-# inlet down button pressed and released
-def inlet_down_pressed(event):
-    global inlet_down_global
-    inlet_down_thread = Thread(target = inlet_down_check, args = ())
-    inlet_down_button.config(image=inlet_down_shade, borderwidth=0, highlightthickness=0)
-    inlet_down_global = True
-    inlet_down_thread.start()
-def inlet_down_released(event):
-    global inlet_down_global
-    inlet_down_button.config(image=inlet_down, borderwidth=0, highlightthickness=0)
-    inlet_down_global = False
+    def released(self, id):
+        self.is_pressed = False
+        
+    def next_pressed(self):
+        if self.master.mode == "clean":
+            self.master.switch_frame("process")
+        else:
+            self.master.switch_frame("temp")
 
-# outlet up button pressed and released
-def outlet_up_pressed(event):
-    global outlet_up_global
-    outlet_up_thread = Thread(target = outlet_up_check, args = ())
-    outlet_up_button.config(image=outlet_up_shade, borderwidth=0, highlightthickness=0)
-    outlet_up_global = True
-    outlet_up_thread.start()
-def outlet_up_released(event):
-    global outlet_up_global
-    outlet_up_button.config(image=outlet_up, borderwidth=0, highlightthickness=0)
-    outlet_up_global = False
+class Temp(CustomFrame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.is_pressed = False
+        self.target_temp = 25
 
-# outlet down button pressed and released
-def outlet_down_pressed(event):
-    global outlet_down_global
-    outlet_down_thread = Thread(target = outlet_down_check, args = ())
-    outlet_down_button.config(image=outlet_down_shade, borderwidth=0, highlightthickness=0)
-    outlet_down_global = True
-    outlet_down_thread.start()
-def outlet_down_released(event):
-    global outlet_down_global
-    outlet_down_button.config(image=outlet_down, borderwidth=0, highlightthickness=0)
-    outlet_down_global = False
+        self.up_image = tk.PhotoImage(file = "resources/up.png")
+        self.up_image = self.up_image
 
-# start button pressed
-def start_pressed():
-    print("<start_pressed function> Start button has been pressed")
-    start_button.config(image=start_shade, borderwidth=0, highlightthickness=0)
-    start_cycle_thread = Thread(target = start_cycle, args = [float(desired_temperature_entry.get())])
-    start_cycle_thread.start()
-    start_button.config(image=start, borderwidth=0, highlightthickness=0)
+        self.down_image = tk.PhotoImage(file = "resources/down.png")
+        self.down_image = self.down_image
 
-# clean button pressed
-def clean_pressed():
-    clean_button.config(image=clean_shade, borderwidth=0, highlightthickness=0)
-    clean_cycle()
-    clean_button.config(image=clean, borderwidth=0, highlightthickness=0)
+        self.temp_up_button = CustomButton(self, image = self.up_image)
+        self.temp_up_button.place(x = self.master.screen_width * 1 // 3, y = self.master.screen_height * 1 // 3, anchor = "center")
+        self.temp_up_button.bind("<ButtonPress-1>", lambda x : self.pressed(1))
+        self.temp_up_button.bind("<ButtonRelease-1>", lambda x : self.released(1))
 
-# updates temperature reading every second
-def update_temperature():
-    while True:
-        global current_temperature_global
-        print("<update_temperature function> Current temperature has been updated via thermocouple.")
-        current_temperature_global = get_current_temperature()
-        current_temperature_label.config(text = current_temperature_global)
+        self.temp_down_button = CustomButton(self, image = self.down_image)
+        self.temp_down_button.place(x = self.master.screen_width * 1 // 3, y = self.master.screen_height * 2 // 3, anchor = "center")
+        self.temp_down_button.bind("<ButtonPress-1>", lambda x : self.pressed(-1))
+        self.temp_down_button.bind("<ButtonRelease-1>", lambda x : self.released(-1))
 
-###################
-##### BUTTONS ##### 
-###################  
+        self.temp_label = CustomLabel(self, text = f"{self.target_temp:.1f}\u00b0C")
+        self.temp_label.place(x = self.master.screen_width * 1 // 3, y = self.master.screen_height * 1 // 2, anchor = "center")
 
-# power button
-power_button = tk.Button(root, image = power_on, borderwidth=0, highlightthickness=0, command=power_pressed)
+        self.next_image = tk.PhotoImage(file = "resources/next.png")
+        self.next_button = CustomButton(self, image = self.next_image, command = self.next_pressed)
+        self.next_button.place(x = self.master.screen_width * 2 // 3, y = self.master.screen_height * 1 // 2, anchor = "center")
 
-# heat/cool button
-heat_cool_button = tk.Button(root, image = heat, borderwidth=0, highlightthickness=0, command=heat_cool_pressed)
+    def check(self, id):
+        start_time = perf_counter()
+        # while self.is_pressed and (self.master.current_temp <= self.target_temp <= 50 and self.master.mode == "heat" or 0 <= self.target_temp <= self.master.current_temp and self.master.mode == "cool"):
+        while self.is_pressed and 0 <= self.target_temp <= 50:
+            # if (self.target_temp + id < self.master.current_temp or self.target_temp + id > 50) and self.master.mode == "heat" or \
+            #     (self.target_temp + id > self.master.current_temp or self.target_temp + id < 0) and self.master.mode == "cool":
+            #     continue
 
-# up and down buttons
-inlet_up_button = tk.Button(root, image = inlet_up, borderwidth=0, highlightthickness=0)
-inlet_up_button.bind("<ButtonPress-1>", inlet_up_pressed)
-inlet_up_button.bind("<ButtonRelease-1>", inlet_up_released)
+            if self.target_temp + id < 0 or self.target_temp + id > 50:
+                continue
+                
+            self.target_temp += id
+            self.temp_label.config(text = f"{self.target_temp:.1f}\u00b0C")
 
-inlet_down_button = tk.Button(root, image = inlet_down, borderwidth=0, highlightthickness=0)
-inlet_down_button.bind("<ButtonPress-1>", inlet_down_pressed)
-inlet_down_button.bind("<ButtonRelease-1>", inlet_down_released)
+            if perf_counter() - start_time < 2:
+                sleep(0.2)
+            else:
+                sleep(0.1)
 
-outlet_up_button = tk.Button(root, image = outlet_up, borderwidth=0, highlightthickness=0)
-outlet_up_button.bind("<ButtonPress-1>", outlet_up_pressed)
-outlet_up_button.bind("<ButtonRelease-1>", outlet_up_released)
+    def pressed(self, id):
+        self.is_pressed = True
+        check_thread = Thread(target = self.check, args = [id])
+        check_thread.start()
 
-outlet_down_button = tk.Button(root, image = outlet_down, borderwidth=0, highlightthickness=0)
-outlet_down_button.bind("<ButtonPress-1>", outlet_down_pressed)
-outlet_down_button.bind("<ButtonRelease-1>", outlet_down_released)
+    def released(self, id):
+        self.is_pressed = False
 
-# start button
-start_button = tk.Button(root, image = start, borderwidth=0, highlightthickness=0, command=start_pressed)
+    def next_pressed(self):
+        self.master.target_temp = self.target_temp
+        self.master.switch_frame("process")
 
-# clean button
-clean_button = tk.Button(root, image = clean, borderwidth=0, highlightthickness=0, command=clean_pressed)
+class Process(CustomFrame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.start_image = tk.PhotoImage(file = "resources/start.png")
+        self.start_button = CustomButton(self, image = self.start_image, command = self.start_pressed)
+        self.start_button.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
 
-###################
-##### ENTRIES ##### 
-###################  
+    def start_pressed(self):
+        self.start_button.destroy()
+        self.master.update()
+        start_time = perf_counter()
+        
+        # create new directory to store csv files if 'temp_data' does not already exist
+        dir_path = os.path.join(os.getcwd(), 'temp_data')
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
-# desired temperature
-desired_temparature_text = tk.Label(root, text="Enter Desired Temperature:")
-desired_temperature_entry = tk.Entry(root)
+        # create csv for current cycle temp data
+        header = ['Time', 'Temperature (C)']
+        now = datetime.now()
+        dt_string = now.strftime("%d-%m-%Y_%H.%M.%S")
+        file_path = os.path.join(dir_path, dt_string + '_data.csv')
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(header)
 
-###################
-##### LABLES ###### 
-###################
+            self.master.run_pump()
+            self.master.is_operating = True
 
-# current temperature
-current_temperature_text = tk.Label(root, text="Current Temperature!")
-current_temperature_label = tk.Label(root)
+            if self.master.mode == "clean":
+                clean_duration = 10
+            
+                self.timer_label = CustomLabel(self)
+                self.timer_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
 
-###################
-# FUNCTION CALLS ##
-###################
+                while perf_counter() - start_time < clean_duration:
+                    self.timer_label.config(text = f"Time remaining: {clean_duration - int(perf_counter() - start_time)} seconds")
+                    self.master.update()
 
-x = screen_width * 0.2
-y = screen_height * 0.5
+                    sleep(0.05)
 
-# adding objects to window
-instruction.place(x=x/1.5+x/3, y=y/2)
+                self.timer_label.destroy()
 
-power_button.place(x=x+x/3, y=y/1.5)
-heat_cool_button.place(x=x+x/3, y=y/1.1)
+            else:
+                self.timer_label = CustomLabel(self)
+                self.timer_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 2 // 5, anchor = "center")
 
-inlet_up_button.place(x=x/0.67+x/3.5, y=y/1.48)
-inlet_down_button.place(x=x/0.67+x/3.5, y=y/1.14)
-outlet_up_button.place(x=x/0.57+x/3.5, y=y/1.48)
-outlet_down_button.place(x=x/0.57+x/3.5, y=y/1.14)
+                self.current_temp_label = CustomLabel(self)
+                self.current_temp_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 3 // 5, anchor = "center")
 
-current_temperature_text.place(x=x/0.44+x/3.5, y=y/1.4)
-current_temperature_label.place(x=x/0.44+x/3.5, y=y/1.27)
-desired_temparature_text.place(x=x/0.44+x/3.5, y=y/1.08)
-desired_temperature_entry.place(x=x/0.44+x/3.5, y=y/1.003)
+                while self.master.current_temp <= self.master.target_temp and self.master.mode == "heat" or self.master.current_temp >= self.master.target_temp and self.master.mode == "cool":
+                    self.timer_label.config(text = f"Time Elapsed: {int(perf_counter() - start_time)} seconds")
+                    self.current_temp_label.config(text = f"Current Temperature: {self.master.current_temp:.1f}\u00b0C")
+                    
+                    # write to csv, add raw temp data
+                    if (self.master.temp_data is not float('-inf')):
+                        if (not self.master.visual_timer_started):
+                            self.master.zero_timer = perf_counter()
+                            self.master.visual_timer_started = True
+                        writer.writerow([perf_counter() - self.master.zero_timer, self.master.temp_data])
+                    
+                    self.master.update()
 
-start_button.place(x=x/0.34+x/4, y=y/1.5)
-clean_button.place(x=x/0.34+x/4, y=y/1.1)
+                    sleep(0.05)
+                
+                self.timer_label.destroy()
+                self.current_temp_label.destroy()
 
-# update temperature thread
-update_temperature_thread = Thread(target = update_temperature, args = ())
-update_temperature_thread.start()
+        self.master.is_operating = False
+        self.master.visual_timer_started = False
+        self.master.update()
 
-# start the tkinter event loop
-root.bind("<Button-1>", lambda event: tooltip.hide_tooltip()) # removes tooltip when clicked off of
-root.mainloop()
+        # clear global var for raw temp data
+        
+        self.end_label = CustomLabel(self, text = "Raising Inlet Tube")
+        self.end_label.place(x = self.master.screen_width * 1 // 2, y = self.master.screen_height * 1 // 2, anchor = "center")
+        self.master.update()
+
+        while GPIO.input(self.master.ACTUATION["inlet_up"]["SWITCH"]):
+            self.master.move_tube("inlet_up", True)
+
+        while not GPIO.input(self.master.ACTUATION["inlet_up"]["SWITCH"]):
+            self.master.move_tube("inlet_up", False)
+
+        self.end_label.config(text = "Flushing Out System")
+        self.master.update()
+
+        sleep(7)
+
+        self.master.stop_pump()
+
+        self.end_label.config(text = "Raising Outlet Tube")
+        self.master.update()
+
+        while GPIO.input(self.master.ACTUATION["outlet_up"]["SWITCH"]):
+            self.master.move_tube("outlet_up", True)
+
+        while not GPIO.input(self.master.ACTUATION["outlet_up"]["SWITCH"]):
+            self.master.move_tube("outlet_up", False)
+
+        self.end_label.config(text = "Cycle Completed!")
+        self.master.update()
+
+        sleep(2)
+        
+        self.master.reset()
+
+app = Application()
+app.mainloop()
