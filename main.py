@@ -392,7 +392,7 @@ class Process(CustomFrame):
             os.makedirs(dir_path)
 
         # create csv for current cycle temp data
-        header = ['Time', 'Temperature (C)']
+        header = ['Time (s)', 'Temperature (C)']
         now = datetime.now()
         dt_string = now.strftime("%d-%m-%Y_%H.%M.%S")
         file_path = os.path.join(dir_path, dt_string + '_data.csv')
