@@ -1,12 +1,12 @@
-# UTME Warmer Application
+# Heating and Cooling (HAC) Beverage Appliance Application
 
-This application is used to control the heating and cooling beverage appliance. Below, we will discuss how to access and operate the application on your device.
+This application is used to control the HAC Beverage Appliance. Below, we will discuss how to access and operate the application on your device.
 
 ## Getting Started
 
 Throughout the development of the graphical user interface, we utilized Git to manage version control and simplify collaboration. The entirety of our code (including previous version history) is stored in this Git repository. You can either clone the repository directly onto your device or access the repository online and download the files from there.
 
-`git clone https://github.com/justin72835/utme-warmer.git`
+`git clone https://github.com/justin72835/hac-beverage-appliance.git`
 
 When running the application, you should make sure that you are in the `main` branch and that your local repository (the cloned repository) is up-to-date. You can check the state of the working directory using the following command.
 
